@@ -118,7 +118,7 @@ class Doctor(db.Model):
 
     id             = db.Column(db.Integer, primary_key=True, autoincrement=True)
     identifierCode = db.Column(db.String(255), unique=True, nullable=False, index=True)
-    supabase_id    = db.Column(db.String(36), unique=True, nullable=True, index=True)  # Campo para Supabase ID (UUID)
+    supabase_id    = db.Column(db.String(255), unique=True, nullable=True, index=True)  # Campo para Supabase ID (UUID)
     firstName      = db.Column(db.String(255), nullable=False)
     middleName     = db.Column(db.String(255), nullable=True) # Ya estaba nullable=True
     lastName1      = db.Column(db.String(255), nullable=False)
@@ -135,7 +135,6 @@ class Doctor(db.Model):
     )
     speciality     = db.Column(db.String(255), nullable=False)
     email          = db.Column(db.String(255), nullable=False, unique=True) # unique=True es bueno aquí
-    supabase_id    = db.Column(db.String(255), unique=True, nullable=True, index=True)  # Campo para Supabase ID (UUID)
     role           = db.Column(db.String(50), nullable=False, server_default='medico')
     status         = db.Column(db.String(50), nullable=False, server_default='active')
     created_at      = db.Column(db.DateTime, server_default=func.now(), nullable=False)

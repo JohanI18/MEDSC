@@ -1,0 +1,81 @@
+# docker-compose.yml
+
+services:
+  # Base de datos MySQL
+  db:
+    image: mysql:8.0
+    container_name: medsc_mysql_db
+    restart: always
+    env_file:
+      - ./.env
+    environment:
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}
+      MYSQL_DATABASE: ${MYSQL_DATABASE}
+      MYSQL_USER: ${MYSQL_USER}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD}
+    ports:
+      - "3306:3306"
+    volumes:
+      - mysql_data:/var/lib/mysql
+    networks:
+      - medsc-network
+
+  # Backend Flask
+  backend:
+    build: 
+      context: ./MEDSC-Monolitica/app
+      dockerfile: Dockerfile
+    container_name: medsc_backend
+    restart: always
+    env_file:
+      - ./.env
+    environment:
+      - DATABASE_URL=mysql://${MYSQL_USER}:${MYSQL_PASSWORD}@db:3306/${MYSQL_DATABASE}
+    ports:
+      - "5000:5000"
+    depends_on:
+      - db
+    networks:
+      - medsc-network
+    volumes:
+      - ./MEDSC-Monolitica/app:/app
+    command: python index.py
+
+  # Frontend Next.js
+  frontend:
+    build:
+      context: ./Frontend
+      dockerfile: Dockerfile
+    container_name: medsc_frontend
+    restart: always
+    environment:
+      - NODE_ENV=production
+      - NEXT_PUBLIC_API_URL=http://localhost:5000
+    ports:
+      - "3000:3000"
+    depends_on:
+      - backend
+    networks:
+      - medsc-network
+
+  # phpMyAdmin para administrar la base de datos
+  phpmyadmin:
+    image: phpmyadmin/phpmyadmin
+    container_name: medsc_phpmyadmin
+    restart: always
+    environment:
+      PMA_HOST: db
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}
+    ports:
+      - "8080:80"
+    depends_on:
+      - db
+    networks:
+      - medsc-network
+
+volumes:
+  mysql_data:
+
+networks:
+  medsc-network:
+    driver: bridge

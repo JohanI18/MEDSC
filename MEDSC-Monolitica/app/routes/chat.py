@@ -9,7 +9,7 @@ import re
 chat = Blueprint('chat', __name__)
 
 # Configure logging
-logging.basicConfig(level=logging.INFO)
+logging.basicConfig(level=logging.ERROR)
 logger = logging.getLogger(__name__)
 
 def check_database_connection():

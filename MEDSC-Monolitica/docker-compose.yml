@@ -1,4 +1,8 @@
 # docker-compose.yml
+# NOTA: Este archivo ha sido reemplazado por el docker-compose.yml principal
+# en el directorio raíz del proyecto que incluye todos los servicios.
+# Para ejecutar toda la aplicación, usa: docker-compose up desde el directorio raíz.
+
 version: '3.8'
 
 services:

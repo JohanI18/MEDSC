@@ -135,7 +135,6 @@ export default function AdditionalExamsModal({
         toast.error(data.error || 'Error al agregar histopatología')
       }
     } catch (error) {
-      console.error('Error adding histopathology:', error)
       toast.error('Error de conexión al servidor')
     } finally {
       setIsSubmitting(false)
@@ -177,9 +176,7 @@ export default function AdditionalExamsModal({
       } else {
         toast.error(data.error || 'Error al agregar imagen')
       }
-    } catch (error) {
-      console.error('Error adding imaging:', error)
-      toast.error('Error de conexión al servidor')
+    } catch (error) {      toast.error('Error de conexión al servidor')
     } finally {
       setIsSubmitting(false)
     }
@@ -220,9 +217,7 @@ export default function AdditionalExamsModal({
       } else {
         toast.error(data.error || 'Error al agregar laboratorio')
       }
-    } catch (error) {
-      console.error('Error adding laboratory:', error)
-      toast.error('Error de conexión al servidor')
+    } catch (error) {      toast.error('Error de conexión al servidor')
     } finally {
       setIsSubmitting(false)
     }
@@ -248,9 +243,7 @@ export default function AdditionalExamsModal({
       } else {
         toast.error(data.error || 'Error al eliminar histopatología')
       }
-    } catch (error) {
-      console.error('Error removing histopathology:', error)
-      toast.error('Error de conexión al servidor')
+    } catch (error) {      toast.error('Error de conexión al servidor')
     }
   }
 
@@ -274,9 +267,7 @@ export default function AdditionalExamsModal({
       } else {
         toast.error(data.error || 'Error al eliminar imagen')
       }
-    } catch (error) {
-      console.error('Error removing imaging:', error)
-      toast.error('Error de conexión al servidor')
+    } catch (error) {      toast.error('Error de conexión al servidor')
     }
   }
 
@@ -300,9 +291,7 @@ export default function AdditionalExamsModal({
       } else {
         toast.error(data.error || 'Error al eliminar laboratorio')
       }
-    } catch (error) {
-      console.error('Error removing laboratory:', error)
-      toast.error('Error de conexión al servidor')
+    } catch (error) {      toast.error('Error de conexión al servidor')
     }
   }
 

@@ -38,7 +38,6 @@ class ChatService {
 
       return await response.json();
     } catch (error) {
-      console.error('Error sending message:', error);
       throw error;
     }
   }
@@ -65,7 +64,6 @@ class ChatService {
       const data: ChatResponse = await response.json();
       return data.messages || [];
     } catch (error) {
-      console.error('Error getting messages:', error);
       throw error;
     }
   }
@@ -85,7 +83,6 @@ class ChatService {
         demo_mode: true
       };
     } catch (error) {
-      console.error('Error with AI message:', error);
       throw error;
     }
   }

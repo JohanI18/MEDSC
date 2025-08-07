@@ -3,7 +3,10 @@ from utils.supabase_client import supabase_auth
 from datetime import datetime, timedelta
 import uuid
 import re
+import logging
 
+# Configure logging
+logger = logging.getLogger(__name__)
 
 login = Blueprint('login', __name__)
 
@@ -393,16 +396,49 @@ def register():
 def forgot_password():
     """Send password reset email via Supabase"""
     if request.method == 'POST':
-        email = request.form.get('email', '').strip()
+        # Check if it's a JSON request (from frontend API)
+        if request.is_json:
+            data = request.get_json()
+            email = data.get('email', '').strip()
+        else:
+            # HTML form request
+            email = request.form.get('email', '').strip()
         
         if not email:
+            if request.is_json:
+                return jsonify({'success': False, 'message': 'Por favor ingrese su email'}), 400
             flash('Por favor ingrese su email', 'danger')
+            return redirect(url_for('login.forgot_password'))
+        
+        # Email validation
+        email_regex = r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$'
+        if not re.match(email_regex, email):
+            if request.is_json:
+                return jsonify({'success': False, 'message': 'Email inválido'}), 400
+            flash('Email inválido', 'danger')
             return redirect(url_for('login.forgot_password'))
         
         result = supabase_auth.reset_password(email)
         
+        # Log the result for debugging
+        current_app.logger.info(f"Reset password result for {email}: {result}")
+        
+        if request.is_json:
+            if result['success']:
+                return jsonify({
+                    'success': True,
+                    'message': result['message']
+                })
+            else:
+                current_app.logger.error(f"Reset password failed for {email}: {result.get('error', 'Unknown error')}")
+                return jsonify({
+                    'success': False,
+                    'message': result['message']
+                }), 400
+        
+        # HTML form response
         if result['success']:
-            flash('Se ha enviado un email para restablecer tu contraseña', 'success')
+            flash(result['message'], 'success')
         else:
             flash(result['message'], 'danger')
         
@@ -411,4 +447,266 @@ def forgot_password():
     return render_template('forgot_password.html')
 
 
+@login.route('/reset-password', methods=['GET', 'POST'])
+def reset_password():
+    """Reset password with token"""
+    access_token = request.args.get('access_token')
+    
+    if not access_token:
+        flash('Token de acceso inválido', 'danger')
+        return redirect(url_for('login.forgot_password'))
+    
+    if request.method == 'POST':
+        # Check if it's a JSON request (from frontend API)
+        if request.is_json:
+            data = request.get_json()
+            new_password = data.get('password', '')
+            confirm_password = data.get('confirm_password', '')
+        else:
+            # HTML form request
+            new_password = request.form.get('password', '')
+            confirm_password = request.form.get('confirm_password', '')
+        
+        if not new_password or not confirm_password:
+            if request.is_json:
+                return jsonify({'success': False, 'message': 'Todos los campos son obligatorios'}), 400
+            flash('Todos los campos son obligatorios', 'danger')
+            return redirect(url_for('login.reset_password', access_token=access_token))
+        
+        if new_password != confirm_password:
+            if request.is_json:
+                return jsonify({'success': False, 'message': 'Las contraseñas no coinciden'}), 400
+            flash('Las contraseñas no coinciden', 'danger')
+            return redirect(url_for('login.reset_password', access_token=access_token))
+        
+        if len(new_password) < 6:
+            if request.is_json:
+                return jsonify({'success': False, 'message': 'La contraseña debe tener al menos 6 caracteres'}), 400
+            flash('La contraseña debe tener al menos 6 caracteres', 'danger')
+            return redirect(url_for('login.reset_password', access_token=access_token))
+        
+        result = supabase_auth.update_password(access_token, new_password)
+        
+        if request.is_json:
+            if result['success']:
+                return jsonify({
+                    'success': True,
+                    'message': result['message']
+                })
+            else:
+                return jsonify({
+                    'success': False,
+                    'message': result['message']
+                }), 400
+        
+        # HTML form response
+        if result['success']:
+            flash('Contraseña actualizada exitosamente. Ya puedes iniciar sesión.', 'success')
+            return redirect(url_for('login.new_login'))
+        else:
+            flash(result['message'], 'danger')
+            return redirect(url_for('login.reset_password', access_token=access_token))
+    
+    return render_template('reset_password.html', access_token=access_token)
 
+
+@login.route('/auth/callback')
+def auth_callback():
+    """Handle Supabase auth callback and redirect appropriately"""
+    # Get parameters from URL
+    access_token = request.args.get('access_token')
+    refresh_token = request.args.get('refresh_token') 
+    type_param = request.args.get('type')
+    error = request.args.get('error')
+    error_description = request.args.get('error_description')
+
+    # Log the callback for debugging
+    current_app.logger.info(f"Auth callback - type: {type_param}, has_access_token: {bool(access_token)}, error: {error}")
+
+    if error:
+        flash(f'Error de autenticación: {error_description or error}', 'danger')
+        return redirect(url_for('login.new_login'))
+
+    # Handle password recovery
+    if type_param == 'recovery' and access_token:
+        # Store tokens in session temporarily for security
+        session['temp_access_token'] = access_token
+        session['temp_refresh_token'] = refresh_token
+        return redirect(url_for('login.reset_password_with_session'))
+
+    # Handle email confirmation
+    if type_param == 'signup':
+        flash('¡Cuenta confirmada exitosamente! Ya puedes iniciar sesión.', 'success')
+        return redirect(url_for('login.new_login'))
+
+    # Default redirect to login
+    flash('Proceso de autenticación completado', 'info')
+    return redirect(url_for('login.new_login'))
+
+
+@login.route('/reset-password-session', methods=['GET', 'POST'])
+def reset_password_with_session():
+    """Reset password using tokens stored in session"""
+    access_token = session.get('temp_access_token')
+    
+    if not access_token:
+        flash('Sesión expirada. Solicita un nuevo enlace de recuperación.', 'danger')
+        return redirect(url_for('login.forgot_password'))
+    
+    if request.method == 'POST':
+        new_password = request.form.get('password', '')
+        confirm_password = request.form.get('confirm_password', '')
+        
+        if not new_password or not confirm_password:
+            flash('Todos los campos son obligatorios', 'danger')
+            return redirect(url_for('login.reset_password_with_session'))
+        
+        if new_password != confirm_password:
+            flash('Las contraseñas no coinciden', 'danger')
+            return redirect(url_for('login.reset_password_with_session'))
+        
+        if len(new_password) < 6:
+            flash('La contraseña debe tener al menos 6 caracteres', 'danger')
+            return redirect(url_for('login.reset_password_with_session'))
+        
+        result = supabase_auth.update_password(access_token, new_password)
+        
+        # Clear temporary session data
+        session.pop('temp_access_token', None)
+        session.pop('temp_refresh_token', None)
+        
+        if result['success']:
+            flash('¡Contraseña actualizada exitosamente! Ya puedes iniciar sesión.', 'success')
+            return redirect(url_for('login.new_login'))
+        else:
+            flash(result['message'], 'danger')
+            return redirect(url_for('login.forgot_password'))
+    
+    return render_template('reset_password_session.html')
+
+
+@login.route('/api/register-doctor', methods=['POST'])
+def register_doctor():
+    """Registra un nuevo doctor creando usuario en Supabase y guardando datos en MySQL"""
+    try:
+        from utils.supabase_client import supabase_auth
+        from models.models_flask import Doctor
+        from utils.db import db
+        
+        data = request.get_json()
+        
+        # Validar datos requeridos
+        required_fields = [
+            'email', 'password', 'firstName', 'lastName1', 'identifierCode',
+            'phoneNumber', 'address', 'gender', 'sex', 'speciality'
+        ]
+        
+        missing_fields = []
+        for field in required_fields:
+            if not data.get(field):
+                missing_fields.append(field)
+        
+        if missing_fields:
+            return jsonify({
+                'success': False,
+                'error': f'Campos requeridos faltantes: {", ".join(missing_fields)}'
+            }), 400
+        
+        # Validar email
+        import re
+        email_regex = r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$'
+        if not re.match(email_regex, data['email']):
+            return jsonify({
+                'success': False,
+                'error': 'Email inválido'
+            }), 400
+        
+        # Validar contraseña
+        if len(data['password']) < 6:
+            return jsonify({
+                'success': False,
+                'error': 'La contraseña debe tener al menos 6 caracteres'
+            }), 400
+        
+        # Verificar si ya existe el email o identifierCode en MySQL
+        existing_email = Doctor.query.filter_by(email=data['email'], is_deleted=False).first()
+        if existing_email:
+            return jsonify({
+                'success': False,
+                'error': 'El email ya está registrado'
+            }), 400
+            
+        existing_identifier = Doctor.query.filter_by(identifierCode=data['identifierCode'], is_deleted=False).first()
+        if existing_identifier:
+            return jsonify({
+                'success': False,
+                'error': 'El número de identificación ya está registrado'
+            }), 400
+        
+        # Crear usuario en Supabase
+        full_name = f"{data['firstName']} {data.get('middleName', '')} {data['lastName1']} {data.get('lastName2', '')}".strip()
+        metadata = {
+            'full_name': full_name,
+            'first_name': data['firstName'],
+            'last_name': data['lastName1'],
+            'speciality': data['speciality']
+        }
+        
+        supabase_result = supabase_auth.sign_up(data['email'], data['password'], metadata)
+        
+        if not supabase_result['success']:
+            return jsonify({
+                'success': False,
+                'error': f'Error en Supabase: {supabase_result["message"]}'
+            }), 400
+        
+        # Obtener el UID de Supabase
+        supabase_user = supabase_result.get('user')
+        if not supabase_user or not hasattr(supabase_user, 'id') or not supabase_user.id:
+            return jsonify({
+                'success': False,
+                'error': 'No se pudo obtener el UID de Supabase'
+            }), 400
+            
+        supabase_uid = supabase_user.id
+        
+        # Crear doctor en la base de datos local
+        new_doctor = Doctor(
+            identifierCode=data['identifierCode'],
+            supabase_id=supabase_uid,
+            firstName=data['firstName'],
+            middleName=data.get('middleName'),
+            lastName1=data['lastName1'],
+            lastName2=data.get('lastName2'),
+            phoneNumber=data['phoneNumber'],
+            address=data['address'],
+            gender=data['gender'],
+            sex=data['sex'],
+            speciality=data['speciality'],
+            email=data['email'],
+            role='medico',
+            status='active',
+            created_by=supabase_uid,
+            updated_by=supabase_uid,
+            is_deleted=False
+        )
+        
+        db.session.add(new_doctor)
+        db.session.commit()
+        
+        logger.info(f"Doctor registered successfully: {data['email']} with Supabase ID: {supabase_uid}")
+        
+        return jsonify({
+            'success': True,
+            'message': 'Doctor registrado exitosamente. Revisa tu email para confirmar tu cuenta.',
+            'doctor_id': new_doctor.id,
+            'supabase_id': supabase_uid
+        })
+        
+    except Exception as e:
+        db.session.rollback()
+        logger.error(f"Error registering doctor: {str(e)}")
+        return jsonify({
+            'success': False,
+            'error': 'Error interno del servidor'
+        }), 500

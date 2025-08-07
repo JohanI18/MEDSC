@@ -186,9 +186,6 @@ export default function EditPatientModal({ isOpen, onClose, patient, onPatientUp
 
     try {
       const formData = watch();
-      console.log('Form data before update:', formData);
-      console.log('Allergies in form:', formData.allergies);
-
       const result = await patientService.updatePatient(patient.id, formData);
       if (result.success) {
         toast.success('Paciente actualizado exitosamente');
@@ -198,7 +195,6 @@ export default function EditPatientModal({ isOpen, onClose, patient, onPatientUp
         toast.error(result.error || 'Error al actualizar paciente');
       }
     } catch (error) {
-      console.error('Error updating patient:', error);
       toast.error('Error de conexión');
     } finally {
       setIsSubmitting(false);

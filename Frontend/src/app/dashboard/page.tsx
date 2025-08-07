@@ -151,8 +151,8 @@ export default function DashboardPage() {
             >
               <Calendar className="h-6 w-6 text-primary-600 mr-3" />
               <div className="text-left">
-                <div className="font-medium text-gray-900">Asistente IA</div>
-                <div className="text-sm text-gray-500">Consultar con IA médica</div>
+                <div className="font-medium text-gray-900">Chat Médico</div>
+                <div className="text-sm text-gray-500">Consultar con otros doctores</div>
               </div>
             </button>
           </div>

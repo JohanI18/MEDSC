@@ -127,7 +127,6 @@ export default function AddPatientModal({ isOpen, onClose, onPatientAdded }: Add
   const onSubmit = async (data: CreatePatientData) => {
     // Solo permitir envío si estamos en el último paso Y el usuario hizo click en "Crear Paciente"
     if (currentStep !== steps.length - 1) {
-      console.log('Prevented form submission - not on last step:', currentStep, 'of', steps.length - 1);
       return false;
     }
     
@@ -140,9 +139,6 @@ export default function AddPatientModal({ isOpen, onClose, onPatientAdded }: Add
         // Convertir alergias de objetos a strings para la API actual
         allergies: data.allergies?.map(a => (a as any).allergy) || []
       };
-      
-      console.log('Submitting patient data:', formattedData);
-      
       const result = await patientService.createPatient(formattedData);
       if (result.success) {
         toast.success('Paciente creado exitosamente');
@@ -155,7 +151,6 @@ export default function AddPatientModal({ isOpen, onClose, onPatientAdded }: Add
         toast.error(result.error || 'Error al crear paciente');
       }
     } catch (error) {
-      console.error('Error submitting form:', error);
       toast.error('Error de conexión');
     } finally {
       setIsSubmitting(false);
@@ -201,14 +196,11 @@ export default function AddPatientModal({ isOpen, onClose, onPatientAdded }: Add
     
     // Solo permitir envío si estamos en el último paso Y el usuario hizo click explícito
     if (currentStep !== steps.length - 1) {
-      console.log('Form submission prevented - not on last step:', currentStep);
       return false;
     }
     
     // Obtener los datos del formulario manualmente
     const formData = watch();
-    console.log('Form data at submission:', formData);
-    
     // Solo proceder si estamos realmente en el último paso
     await onSubmit(formData);
   };
@@ -810,7 +802,6 @@ export default function AddPatientModal({ isOpen, onClose, onPatientAdded }: Add
                 <button
                   type="button"
                   onClick={async () => {
-                    console.log('Create patient button clicked');
                     const formData = watch();
                     await onSubmit(formData);
                   }}

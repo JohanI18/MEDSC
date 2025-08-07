@@ -91,9 +91,7 @@ export default function OrganSystemReviewModal({
       } else {
         toast.error(data.error || 'Error al agregar revisión de sistema')
       }
-    } catch (error) {
-      console.error('Error adding organ system review:', error)
-      toast.error('Error de conexión al servidor')
+    } catch (error) {      toast.error('Error de conexión al servidor')
     } finally {
       setIsSubmitting(false)
     }
@@ -119,9 +117,7 @@ export default function OrganSystemReviewModal({
       } else {
         toast.error(data.error || 'Error al eliminar revisión')
       }
-    } catch (error) {
-      console.error('Error removing organ system review:', error)
-      toast.error('Error de conexión al servidor')
+    } catch (error) {      toast.error('Error de conexión al servidor')
     }
   }
 

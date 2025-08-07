@@ -92,9 +92,7 @@ export default function TreatmentModal({
       } else {
         toast.error(data.error || 'Error al agregar tratamiento')
       }
-    } catch (error) {
-      console.error('Error adding treatment:', error)
-      toast.error('Error de conexión al servidor')
+    } catch (error) {      toast.error('Error de conexión al servidor')
     } finally {
       setIsSubmitting(false)
     }
@@ -120,9 +118,7 @@ export default function TreatmentModal({
       } else {
         toast.error(data.error || 'Error al eliminar tratamiento')
       }
-    } catch (error) {
-      console.error('Error removing treatment:', error)
-      toast.error('Error de conexión al servidor')
+    } catch (error) {      toast.error('Error de conexión al servidor')
     }
   }
 

@@ -1769,31 +1769,6 @@ def get_session_data():
         logger.error(f"Error getting session data: {str(e)}")
         return jsonify({'success': False, 'error': 'Error al obtener datos de sesión'}), 500
 
-@attention.route('/api/debug-state', methods=['GET'])
-def debug_attention_state():
-    """Debug endpoint to check current attention state"""
-    try:
-        global selected_patient_id, vital_signs_data, evaluation_data
-        global physical_exams, organ_system_reviews, diagnostics, treatments
-        global histopathologies, imagings, laboratories
-        
-        return jsonify({
-            'success': True,
-            'debug_data': {
-                'selected_patient_id': selected_patient_id,
-                'vital_signs_count': len(vital_signs_data),
-                'vital_signs_data': vital_signs_data,
-                'evaluation_data': evaluation_data,
-                'physical_exams_count': len(physical_exams),
-                'diagnostics_count': len(diagnostics),
-                'session_authenticated': is_authenticated(),
-                'session_data': dict(session) if session else None
-            }
-        })
-        
-    except Exception as e:
-        logger.error(f"Error in debug state: {str(e)}")
-        return jsonify({'success': False, 'error': str(e)}), 500
 def get_all_attentions():
     """Get all attentions with pagination and filters"""
     try:

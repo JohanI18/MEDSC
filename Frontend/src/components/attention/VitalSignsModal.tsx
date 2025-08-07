@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { X } from 'lucide-react';
 import { attentionService } from '@/services/attention';
+import { VitalSigns } from '@/types';
 import toast from 'react-hot-toast';
 
 interface VitalSignsModalProps {
@@ -51,12 +52,21 @@ export default function VitalSignsModal({ isOpen, onClose, onSuccess }: VitalSig
     setIsSubmitting(true);
 
     try {
-      // Filter out empty values
-      const cleanedData = Object.fromEntries(
-        Object.entries(formData).filter(([_, value]) => value.trim() !== '')
-      );
+      // Map form data to API expected format
+      const [systolic, diastolic] = formData.bloodPressure.split('/').map(v => v.trim());
+      
+      const vitalSignsData = {
+        blood_pressure_systolic: systolic ? parseFloat(systolic) : 0,
+        blood_pressure_diastolic: diastolic ? parseFloat(diastolic) : 0,
+        heart_rate: formData.heartRate ? parseFloat(formData.heartRate) : 0,
+        temperature: formData.temperature ? parseFloat(formData.temperature) : 0,
+        respiratory_rate: formData.breathingFrequency ? parseFloat(formData.breathingFrequency) : 0,
+        oxygen_saturation: formData.oxygenSaturation ? parseFloat(formData.oxygenSaturation) : undefined,
+        weight: formData.weight ? parseFloat(formData.weight) : undefined,
+        height: formData.height ? parseFloat(formData.height) : undefined,
+      };
 
-      const result = await attentionService.addVitalSigns(cleanedData);
+      const result = await attentionService.addVitalSigns(vitalSignsData as Omit<VitalSigns, 'id' | 'attention_id' | 'created_at'>);
       
       if (result.success) {
         toast.success('Signos vitales guardados exitosamente');

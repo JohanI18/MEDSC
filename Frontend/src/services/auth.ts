@@ -50,6 +50,41 @@ export const authService = {
     }
   },
 
+  forgotPassword: async (email: string): Promise<ApiResponse<any>> => {
+    try {
+      const response = await api.post('/forgot-password', { email });
+      return {
+        success: true,
+        data: response.data,
+        message: 'Email de recuperación enviado exitosamente'
+      };
+    } catch (error: any) {
+      return {
+        success: false,
+        error: error.response?.data?.message || 'Error al enviar email de recuperación'
+      };
+    }
+  },
+
+  resetPassword: async (password: string, confirm_password: string, access_token: string): Promise<ApiResponse<any>> => {
+    try {
+      const response = await api.post(`/reset-password?access_token=${access_token}`, { 
+        password, 
+        confirm_password 
+      });
+      return {
+        success: true,
+        data: response.data,
+        message: 'Contraseña actualizada exitosamente'
+      };
+    } catch (error: any) {
+      return {
+        success: false,
+        error: error.response?.data?.message || 'Error al actualizar contraseña'
+      };
+    }
+  },
+
   getCurrentUser: async (): Promise<ApiResponse<any>> => {
     try {
       const response = await api.get('/me');

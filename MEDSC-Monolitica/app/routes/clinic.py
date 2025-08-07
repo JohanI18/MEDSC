@@ -13,7 +13,6 @@ def check_database_connection():
         db.session.execute(text('SELECT 1'))
         return True
     except Exception as e:
-        print(f"Error de conexión a base de datos: {str(e)}")
         return False
 
 @clinic.route('/')
@@ -56,7 +55,6 @@ def home():
                     'speciality': doctor.speciality
                 }
         except Exception as e:
-            print(f"Error fetching doctor info: {str(e)}")
             doctor_info = None
 
     # Si no hay base de datos, mostrar mensaje solo para vistas que la requieren (excepto addAttention y attentionHistory)
@@ -70,7 +68,6 @@ def home():
             try:
                 patients = Patient.query.all()
             except Exception as e:
-                print(f"Error fetching patients: {str(e)}")
                 patients = []
         else:
             patients = []
@@ -87,7 +84,6 @@ def home():
             patients = Patient.query.filter_by(is_deleted=False).order_by(Patient.firstName, Patient.lastName1).all()
             return render_template('home.html', view=view, patients=patients, doctor_info=doctor_info)
         except Exception as e:
-            print(f"Error fetching patients: {str(e)}")
             patients = []
             return render_template('home.html', view=view, patients=patients, doctor_info=doctor_info)
     elif view == 'addPatient':

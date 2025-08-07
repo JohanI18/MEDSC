@@ -2,10 +2,21 @@ from dotenv import load_dotenv
 import os
 import secrets
 
-load_dotenv()
+# Cargar variables de entorno desde el directorio padre o actual
+env_paths = [
+    os.path.join(os.path.dirname(os.path.dirname(__file__)), '.env'),  # Directorio padre
+    os.path.join(os.path.dirname(__file__), '.env'),  # Directorio actual
+    '.env'  # Directorio de trabajo actual
+]
 
-user = os.getenv("MYSQL_USER")
-password = os.getenv("MYSQL_PASSWORD")
+for env_path in env_paths:
+    if os.path.exists(env_path):
+        load_dotenv(env_path)
+        break
+
+# Para la conexión Python, usaremos root
+user = "root"
+password = os.getenv("MYSQL_ROOT_PASSWORD")
 host = os.getenv("MYSQL_HOST")
 port = os.getenv("MYSQL_PORT")
 database = os.getenv("MYSQL_DATABASE")

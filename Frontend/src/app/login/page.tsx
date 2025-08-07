@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useForm } from 'react-hook-form';
 import { Eye, EyeOff, Mail, Lock } from 'lucide-react';
+import Link from 'next/link';
 import { authService } from '@/services/auth';
 import { LoginCredentials } from '@/types';
 import toast from 'react-hot-toast';
@@ -118,9 +119,9 @@ export default function LoginPage() {
 
           <div className="flex items-center justify-between">
             <div className="text-sm">
-              <a href="#" className="font-medium text-primary-600 hover:text-primary-500">
+              <Link href="/forgot-password" className="font-medium text-primary-600 hover:text-primary-500">
                 ¿Olvidaste tu contraseña?
-              </a>
+              </Link>
             </div>
           </div>
 
@@ -141,9 +142,9 @@ export default function LoginPage() {
           <div className="text-center">
             <p className="text-sm text-gray-600">
               ¿No tienes una cuenta?{' '}
-              <a href="/register" className="font-medium text-primary-600 hover:text-primary-500">
+              <Link href="/register" className="font-medium text-primary-600 hover:text-primary-500">
                 Regístrate
-              </a>
+              </Link>
             </p>
           </div>
         </form>
