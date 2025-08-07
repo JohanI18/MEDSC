@@ -6,7 +6,7 @@ from sqlalchemy.exc import IntegrityError, DataError, StatementError
 from datetime import date, datetime
 
 from models import (
-    Base, Patient, Doctor, Attention, Allergy, Credentials, Diagnostic,
+    Base, Patient, Doctor, Attention, Allergy, Diagnostic,
     EmergencyContact, FamilyBackground, Histopathology, Imaging, Laboratory,
     PreExistingCondition, RegionalPhysicalExamination, ReviewOrgansSystem, Treatment
 )
@@ -317,97 +317,6 @@ class TestModels(unittest.TestCase):
         # SQLAlchemy "delete-orphan" se activa cuando el hijo es desasociado O el padre es borrado.
         orphan_allergy = self.session.query(Allergy).filter_by(id=allergy_id_to_check).first()
         self.assertIsNone(orphan_allergy)
-
-    # --- Pruebas para Credentials ---
-
-    # Crea un Doctor.
-    # Crea Credentials para ese doctor, vinculando idUser al doctor.id y userType a 'doctor'.
-    # Verifica que las credenciales se guarden y que la relación credentials.doctor apunte al doctor correcto.
-
-    def test_create_credentials_for_doctor(self):
-        doctor = Doctor(
-            identifierCode="CRDOC001", firstName="Dr.", lastName1="House",
-            phoneNumber="555-000", address="Hospital", gender="Masculino",
-            sex="Masculino", speciality="Diagnóstico", email="house@example.com"
-        )
-        self.session.add(doctor)
-        self.session.commit() # Para obtener doctor.id
-
-        credentials_data = {
-            "identifierCode": "CRDOC001", # Debe coincidir con Doctor.identifierCode
-            "password": "hashed_password_here", # En una app real, esto estaría hasheado
-            "idUser": doctor.id,
-            "userType": "doctor"
-        }
-        new_credentials = Credentials(**credentials_data)
-        self.session.add(new_credentials)
-        self.session.commit()
-
-        retrieved_credentials = self.session.query(Credentials).filter_by(idUser=doctor.id, userType="doctor").first()
-        self.assertIsNotNone(retrieved_credentials)
-        self.assertEqual(retrieved_credentials.identifierCode, "CRDOC001")
-        self.assertIsNotNone(retrieved_credentials.doctor) # Probar la relación
-        self.assertEqual(retrieved_credentials.doctor.firstName, "Dr.")
-
-    # Crea un Patient.
-    # Crea Credentials para ese paciente, vinculando idUser al patient.id y userType a 'patient'.
-    # Verifica que las credenciales se guarden y que la relación credentials.doctor sea None (ya que es para un paciente).
-
-    def test_create_credentials_for_patient(self):
-        patient = Patient(
-            identifierType="GeneratedIdentifier", identifierCode="CRPAT001",
-            firstName="John", lastName1="Doe", address="Anytown", birthdate=date(1970, 1, 1)
-        )
-        self.session.add(patient)
-        self.session.commit() # Para obtener patient.id
-
-        credentials_data = {
-            "identifierCode": "CRPAT001", # Debe coincidir con Patient.identifierCode
-            "password": "another_hashed_password",
-            "idUser": patient.id,
-            "userType": "patient"
-        }
-        new_credentials = Credentials(**credentials_data)
-        self.session.add(new_credentials)
-        self.session.commit()
-
-        retrieved_credentials = self.session.query(Credentials).filter_by(idUser=patient.id, userType="patient").first()
-        self.assertIsNotNone(retrieved_credentials)
-        self.assertEqual(retrieved_credentials.identifierCode, "CRPAT001")
-        # Aquí, la relación 'doctor' en Credentials debería ser None
-        self.assertIsNone(retrieved_credentials.doctor)
-
-    # Prueba la restricción UniqueConstraint('identifierCode', 'userType', ...) en Credentials.
-    # Crea credenciales para un doctor.
-    # Intenta crear otras credenciales con el mismo identifierCode y userType='doctor' (pero diferente idUser), esperando una IntegrityError.
-    # Verifica que SÍ se puedan crear credenciales con el mismo identifierCode si el userType es diferente (ej. 'patient').
-
-    def test_credentials_unique_constraint(self):
-        # Crear un doctor y sus credenciales
-        doctor1 = Doctor(identifierCode="UNIQUE_CRED_DOC", firstName="Test", lastName1="Doc", phoneNumber="1", address="A", gender="Masculino", sex="Masculino", speciality="B", email="uniquecred@doc.com")
-        self.session.add(doctor1)
-        self.session.commit()
-        
-        cred1 = Credentials(identifierCode="ID_CODE_123", password="p1", idUser=doctor1.id, userType="doctor")
-        self.session.add(cred1)
-        self.session.commit()
-
-        # Intentar crear otras credenciales con el mismo identifierCode y userType DEBE fallar
-        cred2_fail = Credentials(identifierCode="ID_CODE_123", password="p2", idUser=doctor1.id + 1, userType="doctor") # Otro idUser pero mismo idCode y type
-        self.session.add(cred2_fail)
-        with self.assertRaises(IntegrityError):
-            self.session.commit()
-        self.session.rollback()
-
-        # Pero con diferente userType DEBERÍA funcionar
-        patient1 = Patient(identifierType="Cedula", identifierCode="ID_CODE_123", firstName="Test", lastName1="Patient", address="B", birthdate=date(2000,1,1))
-        self.session.add(patient1)
-        self.session.commit()
-
-        cred3_ok = Credentials(identifierCode="ID_CODE_123", password="p3", idUser=patient1.id, userType="patient")
-        self.session.add(cred3_ok)
-        self.session.commit() # Esto debería funcionar
-        self.assertIsNotNone(cred3_ok.id)
 
     # --- Pruebas para Diagnostic y relación con Attention ---
 
