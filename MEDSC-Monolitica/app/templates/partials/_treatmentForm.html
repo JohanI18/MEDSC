@@ -1,0 +1,112 @@
+<link rel="stylesheet" href="{{ url_for('static', filename='css/attentionForms.css') }}">
+
+<h3 class="form-section-title">Tratamiento</h3>
+
+{% include 'partials/_message.html' %}
+
+<form action="/add-treatment" method="POST" class="treatment-form">
+    <div class="row g-3">
+        <div class="col-md-6">
+            <label for="medicament" class="form-label">Medicamento *</label>
+            <input type="text" name="medicament" id="medicament" class="form-control" 
+                   placeholder="Nombre del medicamento" required>
+        </div>
+        
+        <div class="col-md-6">
+            <label for="via" class="form-label">Vía de Administración *</label>
+            <select name="via" id="via" class="form-select" required>
+                <option value="">Seleccione vía</option>
+                <option value="Oral">Oral</option>
+                <option value="Intravenosa">Intravenosa</option>
+                <option value="Intramuscular">Intramuscular</option>
+                <option value="Subcutánea">Subcutánea</option>
+                <option value="Tópica">Tópica</option>
+                <option value="Inhalatoria">Inhalatoria</option>
+                <option value="Rectal">Rectal</option>
+                <option value="Oftálmica">Oftálmica</option>
+                <option value="Ótica">Ótica</option>
+                <option value="Nasal">Nasal</option>
+            </select>
+        </div>
+        
+        <div class="col-md-4">
+            <label for="dosage" class="form-label">Dosis *</label>
+            <input type="text" name="dosage" id="dosage" class="form-control" 
+                   placeholder="500" required>
+        </div>
+        
+        <div class="col-md-4">
+            <label for="unity" class="form-label">Unidad *</label>
+            <select name="unity" id="unity" class="form-select" required>
+                <option value="">Seleccione unidad</option>
+                <option value="mg">mg</option>
+                <option value="g">g</option>
+                <option value="ml">ml</option>
+                <option value="UI">UI</option>
+                <option value="mcg">mcg</option>
+                <option value="comprimidos">comprimidos</option>
+                <option value="cápsulas">cápsulas</option>
+                <option value="gotas">gotas</option>
+                <option value="aplicaciones">aplicaciones</option>
+            </select>
+        </div>
+        
+        <div class="col-md-4">
+            <label for="frequency" class="form-label">Frecuencia *</label>
+            <input type="text" name="frequency" id="frequency" class="form-control" 
+                   placeholder="Cada 8 horas" required>
+        </div>
+        
+        <div class="col-12">
+            <label for="indications" class="form-label">Indicaciones *</label>
+            <textarea name="indications" id="indications" class="form-control" rows="3" 
+                      placeholder="Instrucciones específicas para el paciente..." required></textarea>
+        </div>
+        
+        <div class="col-12">
+            <label for="warning" class="form-label">Advertencias</label>
+            <textarea name="warning" id="warning" class="form-control" rows="2" 
+                      placeholder="Advertencias o precauciones especiales (opcional)"></textarea>
+        </div>
+    </div>
+    
+    <div class="form-actions mt-4">
+        <button type="submit" class="btn btn-primary">
+            <i class="fas fa-plus me-2"></i>Agregar Tratamiento
+        </button>
+    </div>
+</form>
+
+<div class="treatment-list-container mt-4">
+    <h4>Tratamientos Registrados</h4>
+    <ul class="treatment-list">
+        {% for treatment in treatments %}
+            <li class="treatment-item">
+                <div class="treatment-details">
+                    <strong>{{ treatment.medicament }}</strong>
+                    <p><strong>Dosis:</strong> {{ treatment.dosage }} {{ treatment.unity }} | <strong>Vía:</strong> {{ treatment.via }}</p>
+                    <p><strong>Frecuencia:</strong> {{ treatment.frequency }}</p>
+                    <p><strong>Indicaciones:</strong> {{ treatment.indications }}</p>
+                    {% if treatment.warning %}
+                        <p><strong>Advertencias:</strong> {{ treatment.warning }}</p>
+                    {% endif %}
+                </div>
+                <form action="/remove-treatment" method="POST" style="display: inline;">
+                    <input type="hidden" name="index" value="{{ loop.index0 }}">
+                    <button type="submit" class="btn btn-sm btn-danger">Eliminar</button>
+                </form>
+            </li>
+        {% endfor %}
+    </ul>
+    
+    <!-- Continue to next step button -->
+    {% if treatments %}
+        <div class="continue-step-container mt-4">
+            <form action="/continue-to-extra-exams" method="POST">
+                <button type="submit" class="btn btn-success btn-lg">
+                    <i class="fas fa-arrow-right me-2"></i>Continuar a Exámenes Extras
+                </button>
+            </form>
+        </div>
+    {% endif %}
+</div>

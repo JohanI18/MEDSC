@@ -1,0 +1,224 @@
+<div class="patient-details-container">
+    <!-- Patient Basic Information -->
+    <div class="row mb-4">
+        <div class="col-md-8">
+            <div class="card">
+                <div class="card-header bg-primary text-white">
+                    <h6 class="mb-0"><i class="fas fa-user me-2"></i>Información Personal</h6>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <p><strong>Nombre Completo:</strong><br>
+                            {{ patient.firstName }} 
+                            {% if patient.middleName %}{{ patient.middleName }} {% endif %}
+                            {{ patient.lastName1 }}
+                            {% if patient.lastName2 %} {{ patient.lastName2 }}{% endif %}</p>
+                            
+                            <p><strong>Identificación:</strong><br>
+                            {{ patient.identifierType }}: {{ patient.identifierCode }}</p>
+                            
+                            {% if patient.birthdate %}
+                            <p><strong>Fecha de Nacimiento:</strong><br>
+                            {{ patient.birthdate.strftime('%d/%m/%Y') }}</p>
+                            {% endif %}
+                            
+                            {% if patient.gender %}
+                            <p><strong>Género:</strong><br>{{ patient.gender }}</p>
+                            {% endif %}
+                            
+                            {% if patient.sex %}
+                            <p><strong>Sexo:</strong><br>{{ patient.sex }}</p>
+                            {% endif %}
+                        </div>
+                        <div class="col-md-6">
+                            {% if patient.phoneNumber %}
+                            <p><strong>Teléfono:</strong><br>{{ patient.phoneNumber }}</p>
+                            {% endif %}
+                            
+                            {% if patient.email %}
+                            <p><strong>Email:</strong><br>{{ patient.email }}</p>
+                            {% endif %}
+                            
+                            <p><strong>Dirección:</strong><br>{{ patient.address }}</p>
+                            
+                            {% if patient.nationality %}
+                            <p><strong>Nacionalidad:</strong><br>{{ patient.nationality }}</p>
+                            {% endif %}
+                            
+                            {% if patient.civilStatus %}
+                            <p><strong>Estado Civil:</strong><br>{{ patient.civilStatus }}</p>
+                            {% endif %}
+                            
+                            {% if patient.job %}
+                            <p><strong>Ocupación:</strong><br>{{ patient.job }}</p>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="card">
+                <div class="card-header bg-danger text-white">
+                    <h6 class="mb-0"><i class="fas fa-tint me-2"></i>Información Médica</h6>
+                </div>
+                <div class="card-body">
+                    {% if patient.bloodType %}
+                    <p><strong>Tipo de Sangre:</strong><br>
+                    <span class="badge bg-danger fs-6">{{ patient.bloodType }}</span></p>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Additional Information Row -->
+    <div class="row mb-4">
+        <!-- Allergies -->
+        <div class="col-md-6 mb-3">
+            <div class="card h-100">
+                <div class="card-header bg-warning text-dark">
+                    <h6 class="mb-0"><i class="fas fa-exclamation-triangle me-2"></i>Alergias</h6>
+                </div>
+                <div class="card-body">
+                    {% if allergies %}
+                        <ul class="list-unstyled">
+                        {% for allergy in allergies %}
+                            <li class="mb-2">
+                                <span class="badge bg-warning text-dark">{{ allergy.allergies }}</span>
+                            </li>
+                        {% endfor %}
+                        </ul>
+                    {% else %}
+                        <p class="text-muted mb-0">No se han registrado alergias</p>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+
+        <!-- Emergency Contacts -->
+        <div class="col-md-6 mb-3">
+            <div class="card h-100">
+                <div class="card-header bg-success text-white">
+                    <h6 class="mb-0"><i class="fas fa-phone-alt me-2"></i>Contactos de Emergencia</h6>
+                </div>
+                <div class="card-body">
+                    {% if emergency_contacts %}
+                        {% for contact in emergency_contacts %}
+                        <div class="mb-3 p-2 border rounded">
+                            <p class="mb-1"><strong>{{ contact.firstName }} {{ contact.lastName }}</strong></p>
+                            <p class="mb-1 text-muted">{{ contact.relationship }}</p>
+                            <p class="mb-1"><i class="fas fa-phone me-1"></i>{{ contact.phoneNumber1 }}</p>
+                            {% if contact.phoneNumber2 %}
+                            <p class="mb-1"><i class="fas fa-phone me-1"></i>{{ contact.phoneNumber2 }}</p>
+                            {% endif %}
+                            <p class="mb-0 small text-muted">{{ contact.address }}</p>
+                        </div>
+                        {% endfor %}
+                    {% else %}
+                        <p class="text-muted mb-0">No se han registrado contactos de emergencia</p>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row mb-4">
+        <!-- Pre-existing Conditions -->
+        <div class="col-md-6 mb-3">
+            <div class="card h-100">
+                <div class="card-header bg-info text-white">
+                    <h6 class="mb-0"><i class="fas fa-notes-medical me-2"></i>Condiciones Preexistentes</h6>
+                </div>
+                <div class="card-body">
+                    {% if pre_existing_conditions %}
+                        {% for condition in pre_existing_conditions %}
+                        <div class="mb-3 p-2 border rounded">
+                            <p class="mb-1"><strong>{{ condition.diseaseName }}</strong></p>
+                            <p class="mb-1 text-muted">Desde: {{ condition.time.strftime('%d/%m/%Y') if condition.time else 'No especificado' }}</p>
+                            {% if condition.medicament %}
+                            <p class="mb-1"><i class="fas fa-pills me-1"></i>{{ condition.medicament }}</p>
+                            {% endif %}
+                            {% if condition.treatment %}
+                            <p class="mb-0 small">Tratamiento: {{ condition.treatment }}</p>
+                            {% endif %}
+                        </div>
+                        {% endfor %}
+                    {% else %}
+                        <p class="text-muted mb-0">No se han registrado condiciones preexistentes</p>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+
+        <!-- Family Background -->
+        <div class="col-md-6 mb-3">
+            <div class="card h-100">
+                <div class="card-header bg-secondary text-white">
+                    <h6 class="mb-0"><i class="fas fa-users me-2"></i>Antecedentes Familiares</h6>
+                </div>
+                <div class="card-body">
+                    {% if family_backgrounds %}
+                        {% for bg in family_backgrounds %}
+                        <div class="mb-3 p-2 border rounded">
+                            <p class="mb-1"><strong>{{ bg.familyBackground }}</strong></p>
+                            <p class="mb-1 text-muted">Grado: {{ bg.degreeRelationship }}°</p>
+                            <p class="mb-0 small text-muted">Fecha: {{ bg.time.strftime('%d/%m/%Y') if bg.time else 'No especificado' }}</p>
+                        </div>
+                        {% endfor %}
+                    {% else %}
+                        <p class="text-muted mb-0">No se han registrado antecedentes familiares</p>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Attention History -->
+    <div class="row">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header bg-dark text-white">
+                    <h6 class="mb-0"><i class="fas fa-history me-2"></i>Historial de Atenciones</h6>
+                </div>
+                <div class="card-body">
+                    {% if attentions %}
+                        <div class="table-responsive">
+                            <table class="table table-striped">
+                                <thead>
+                                    <tr>
+                                        <th>Fecha</th>
+                                        <th>Doctor</th>
+                                        <th>Motivo de Consulta</th>
+                                        <th>Diagnósticos</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for attention in attentions %}
+                                    <tr>
+                                        <td>{{ attention.date.strftime('%d/%m/%Y %H:%M') if attention.date else 'N/A' }}</td>
+                                        <td>Dr. {{ attention.doctor.firstName }} {{ attention.doctor.lastName1 }}</td>
+                                        <td>{{ attention.reasonConsultation }}</td>
+                                        <td>
+                                            {% if attention.diagnostics %}
+                                                {% for diagnostic in attention.diagnostics %}
+                                                    <span class="badge bg-primary me-1">{{ diagnostic.disease }}</span>
+                                                {% endfor %}
+                                            {% else %}
+                                                <span class="text-muted">Sin diagnósticos</span>
+                                            {% endif %}
+                                        </td>
+                                    </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                    {% else %}
+                        <p class="text-muted mb-0">No se han registrado atenciones médicas para este paciente</p>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>

@@ -1,0 +1,411 @@
+
+{% extends 'layout.html' %}
+
+{% block head %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/home.css') }}">
+<link rel="stylesheet" href="{{ url_for('static', filename='css/chat.css') }}">
+{% endblock %}
+
+{% block body %}
+<div class="app-container">
+    <aside class="sidebar">
+        <div class="profile-section">
+            <div class="profile-pic"></div>
+            {% if doctor_info %}
+                <p class="doctor-name">Dr. {{ doctor_info.firstName }} {{ doctor_info.lastName1 }}</p>
+                <p class="doctor-role">{{ doctor_info.speciality }}</p>
+            {% else %}
+                <p class="doctor-name loading">Cargando...</p>
+                <p class="doctor-role loading">...</p>
+            {% endif %}
+        </div>
+
+        <nav>
+            <ul>
+                <li>
+                    <form action="{{ url_for('clinic.home', view='addPatient', sec_view='addPatient') }}" method="POST">
+                        <button class="nav-button">
+                            <i class="fas fa-user-plus me-2"></i>AGREGAR PACIENTE
+                        </button>
+                    </form>
+                </li>
+                <li>
+                    <form action="{{ url_for('clinic.home', view='addAttention') }}" method="POST">
+                        <button class="nav-button">
+                            <i class="fas fa-stethoscope me-2"></i>AGREGAR ATENCIÓN
+                        </button>
+                    </form>
+                </li>
+                <li>
+                    <form action="{{ url_for('clinic.home', view='attentionHistory') }}" method="POST">
+                        <button class="nav-button">
+                            <i class="fas fa-stethoscope me-2"></i>HISTORIAL DE ATENCIONES
+                        </button>
+                    </form>
+                </li>
+                <li>
+                    <form action="{{ url_for('chat.chat_view') }}" method="GET">
+                        <button class="nav-button active">
+                            <i class="fas fa-comments me-2"></i>CHAT MÉDICO
+                        </button>
+                    </form>
+                </li>
+            </ul>
+        </nav>
+        
+        <!-- Logout section at bottom -->
+        <div class="logout-section">
+            <form action="{{ url_for('login.logout') }}" method="POST" onsubmit="return confirmLogout()">
+                <button type="submit" class="logout-button">
+                    <i class="fas fa-sign-out-alt me-2"></i>Cerrar Sesión
+                </button>
+            </form>
+        </div>
+    </aside>
+
+    <main class="main-content">
+        <div class="chat-container">
+            <div class="doctors-list">
+                <div class="doctors-header">
+                    <h3>Doctores</h3>
+                </div>
+                <div class="doctors-search">
+                    <input type="text" id="doctorSearch" placeholder="Buscar doctor...">
+                    <i class="fas fa-search"></i>
+                </div>
+                <ul class="doctors-items" id="doctorsList">
+                    {% for doctor in doctors %}
+                    <li class="doctor-item" data-id="{{ doctor.id }}" data-name="Dr. {{ doctor.firstName }} {{ doctor.lastName1 }}">
+                        <div class="doctor-avatar">
+                            <i class="fas fa-user-md"></i>
+                            <span class="status-indicator offline" id="status-{{ doctor.id }}"></span>
+                        </div>
+                        <div class="doctor-info">
+                            <h4>Dr. {{ doctor.firstName }} {{ doctor.lastName1 }}</h4>
+                            <p>{{ doctor.speciality }}</p>
+                        </div>
+                        <div class="unread-badge" id="unread-{{ doctor.id }}"></div>
+                    </li>
+                    {% endfor %}
+                </ul>
+            </div>
+            
+            <div class="chat-area">
+                <div class="chat-header" id="chatHeader">
+                    <h3>Seleccione un doctor para chatear</h3>
+                </div>
+                <div class="messages-container" id="messagesContainer">
+                    <div class="no-chat-selected">
+                        <i class="fas fa-comments"></i>
+                        <p>Seleccione un doctor para iniciar una conversación</p>
+                    </div>
+                </div>
+                <div class="message-input-container" id="messageInputContainer" style="display: none;">
+                    <input type="text" id="messageInput" placeholder="Escriba su mensaje...">
+                    <button id="sendButton">
+                        <i class="fas fa-paper-plane"></i>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </main>
+</div>
+
+<audio id="messageSound" src="{{ url_for('static', filename='sounds/message.mp3') }}" preload="auto"></audio>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.0.1/socket.io.js"></script>
+<script>
+    // Store current doctor info
+    const currentDoctorId = {{ doctor_info.id if doctor_info else null }};
+    let selectedDoctorId = null;
+    let socket = null;
+    
+    // Initialize socket connection
+    function initSocket() {
+        socket = io();
+        
+        socket.on('connect', function() {
+            console.log('Connected to server');
+        });
+        
+        socket.on('doctor_status', function(data) {
+            const statusIndicator = document.getElementById(`status-${data.doctor_id}`);
+            if (statusIndicator) {
+                if (data.status === 'online') {
+                    statusIndicator.classList.remove('offline');
+                    statusIndicator.classList.add('online');
+                } else {
+                    statusIndicator.classList.remove('online');
+                    statusIndicator.classList.add('offline');
+                }
+            }
+        });
+        
+        socket.on('new_message', function(data) {
+            if (data.sender_id === selectedDoctorId) {
+                // If chat with sender is open, display message
+                appendMessage(data);
+                
+                // Play sound only if window is not focused
+                if (!document.hasFocus()) {
+                    document.getElementById('messageSound').play();
+                }
+            } else {
+                // Otherwise, show notification
+                const unreadBadge = document.getElementById(`unread-${data.sender_id}`);
+                if (unreadBadge) {
+                    const currentCount = parseInt(unreadBadge.textContent) || 0;
+                    unreadBadge.textContent = currentCount + 1;
+                    unreadBadge.style.display = 'flex';
+                    
+                    // Play sound
+                    document.getElementById('messageSound').play();
+                }
+            }
+        });
+        
+        socket.on('message_sent', function(data) {
+            // Message sent successfully
+            const messageInput = document.getElementById('messageInput');
+            messageInput.value = '';
+            messageInput.focus();
+        });
+        
+        socket.on('message_error', function(data) {
+            alert('Error al enviar mensaje: ' + data.error);
+        });
+    }
+    
+    // Load messages for selected doctor
+    function loadMessages(doctorId) {
+        fetch(`/get-messages/${doctorId}`)
+            .then(response => response.json())
+            .then(data => {
+                const messagesContainer = document.getElementById('messagesContainer');
+                messagesContainer.innerHTML = '';
+                
+                if (data.messages && data.messages.length > 0) {
+                    data.messages.forEach(msg => {
+                        appendMessage({
+                            sender_id: msg.sender_id,
+                            message: msg.message,
+                            timestamp: msg.timestamp,
+                            is_mine: msg.is_mine
+                        });
+                    });
+                } else {
+                    messagesContainer.innerHTML = `
+                        <div class="no-messages">
+                            <p>No hay mensajes. ¡Envía el primero!</p>
+                        </div>
+                    `;
+                }
+                
+                // Scroll to bottom
+                messagesContainer.scrollTop = messagesContainer.scrollHeight;
+            })
+            .catch(error => {
+                console.error('Error loading messages:', error);
+            });
+    }
+    
+    // Append a message to the chat
+    function appendMessage(msg) {
+        const messagesContainer = document.getElementById('messagesContainer');
+        const messageDiv = document.createElement('div');
+        
+        messageDiv.className = msg.is_mine ? 'message message-sent' : 'message message-received';
+        
+        const time = new Date(msg.timestamp);
+        const timeStr = time.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
+        
+        messageDiv.innerHTML = `
+            <div class="message-content">
+                <p>${msg.message}</p>
+                <span class="message-time">${timeStr}</span>
+            </div>
+        `;
+        
+        messagesContainer.appendChild(messageDiv);
+        messagesContainer.scrollTop = messagesContainer.scrollHeight;
+    }
+    
+    // Send a message
+    function sendMessage() {
+        const messageInput = document.getElementById('messageInput');
+        const message = messageInput.value.trim();
+        
+        if (!message || !selectedDoctorId) {
+            return;
+        }
+        
+        // Datos del mensaje
+        const messageData = {
+            receiver_id: selectedDoctorId,
+            message: message
+        };
+        
+        // Intentar enviar por socket primero
+        if (socket && socket.connected) {
+            socket.emit('send_message', messageData);
+        } else {
+            // Fallback a HTTP si el socket no está disponible
+            fetch('/send-message', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify(messageData)
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.id) {
+                    // Limpiar input
+                    messageInput.value = '';
+                    messageInput.focus();
+                } else {
+                    alert('Error al enviar mensaje');
+                }
+            })
+            .catch(error => {
+                console.error('Error sending message:', error);
+                alert('Error al enviar mensaje');
+            });
+        }
+        
+        // Append message to chat (optimistic UI)
+        appendMessage({
+            sender_id: currentDoctorId,
+            message: message,
+            timestamp: new Date().toISOString(),
+            is_mine: true
+        });
+        
+        // Limpiar input (optimistic UI)
+        messageInput.value = '';
+    }
+    
+    // Setup doctor selection
+    function setupDoctorSelection() {
+        const doctorItems = document.querySelectorAll('.doctor-item');
+        
+        doctorItems.forEach(item => {
+            item.addEventListener('click', function() {
+                const doctorId = parseInt(this.getAttribute('data-id'));
+                const doctorName = this.getAttribute('data-name');
+                
+                // Update selected doctor
+                selectedDoctorId = doctorId;
+                
+                // Update UI
+                doctorItems.forEach(d => d.classList.remove('active'));
+                this.classList.add('active');
+                
+                // Clear unread badge
+                const unreadBadge = document.getElementById(`unread-${doctorId}`);
+                if (unreadBadge) {
+                    unreadBadge.textContent = '';
+                    unreadBadge.style.display = 'none';
+                }
+                
+                // Update chat header
+                const chatHeader = document.getElementById('chatHeader');
+                chatHeader.innerHTML = `
+                    <h3>${doctorName}</h3>
+                    <span class="status-text" id="header-status-${doctorId}">
+                        <i class="fas fa-circle ${document.getElementById(`status-${doctorId}`).classList.contains('online') ? 'text-success' : 'text-secondary'}"></i>
+                        ${document.getElementById(`status-${doctorId}`).classList.contains('online') ? 'En línea' : 'Desconectado'}
+                    </span>
+                `;
+                
+                // Show message input
+                document.getElementById('messageInputContainer').style.display = 'flex';
+                
+                // Load messages
+                loadMessages(doctorId);
+            });
+        });
+    }
+    
+    // Setup search functionality
+    function setupSearch() {
+        const searchInput = document.getElementById('doctorSearch');
+        
+        searchInput.addEventListener('input', function() {
+            const searchTerm = this.value.toLowerCase();
+            const doctorItems = document.querySelectorAll('.doctor-item');
+            
+            doctorItems.forEach(item => {
+                const doctorName = item.getAttribute('data-name').toLowerCase();
+                const doctorSpeciality = item.querySelector('.doctor-info p').textContent.toLowerCase();
+                
+                if (doctorName.includes(searchTerm) || doctorSpeciality.includes(searchTerm)) {
+                    item.style.display = 'flex';
+                } else {
+                    item.style.display = 'none';
+                }
+            });
+        });
+    }
+    
+    // Setup message input
+    function setupMessageInput() {
+        const messageInput = document.getElementById('messageInput');
+        const sendButton = document.getElementById('sendButton');
+        
+        // Send on button click
+        sendButton.addEventListener('click', function() {
+            sendMessage();
+        });
+        
+        // Send on Enter key
+        messageInput.addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') {
+                sendMessage();
+            }
+        });
+    }
+    
+    // Agregar esta función para cargar conteos de mensajes no leídos
+    function loadUnreadCounts() {
+        fetch('/get-unread-counts')
+            .then(response => response.json())
+            .then(data => {
+                if (data.unread_counts) {
+                    Object.keys(data.unread_counts).forEach(doctorId => {
+                        const count = data.unread_counts[doctorId];
+                        const unreadBadge = document.getElementById(`unread-${doctorId}`);
+                        
+                        if (unreadBadge && count > 0) {
+                            unreadBadge.textContent = count;
+                            unreadBadge.style.display = 'flex';
+                        }
+                    });
+                }
+            })
+            .catch(error => {
+                console.error('Error loading unread counts:', error);
+            });
+    }
+    
+    // Initialize everything when DOM is loaded
+    document.addEventListener('DOMContentLoaded', function() {
+        if (currentDoctorId) {
+            initSocket();
+            setupDoctorSelection();
+            setupSearch();
+            setupMessageInput();
+            loadUnreadCounts(); // Cargar conteos de mensajes no leídos
+        }
+    });
+    
+    function confirmLogout() {
+        return confirm('¿Está seguro que desea cerrar sesión?');
+    }
+</script>
+{% endblock %}   
+
+
+
+
+

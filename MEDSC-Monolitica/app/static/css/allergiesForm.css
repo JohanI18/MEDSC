@@ -1,0 +1,172 @@
+/* ---- Contenedor Principal ---- */
+.allergy-container {
+    max-width: 450px;
+    margin: auto;
+    background: #ffffff;
+    padding: 20px;
+    border-radius: 10px;
+    box-shadow: 2px 2px 10px rgba(0, 0, 0, 0.2);
+    text-align: center;
+}
+
+/* ---- Título ---- */
+.allergy-title {
+    color: #007acc;
+    font-size: 18px;
+    font-weight: bold;
+    margin-bottom: 10px;
+}
+
+/* ---- Mensaje de éxito/error ---- */
+.allergy-message {
+    font-size: 12px;
+    font-weight: bold;
+    padding: 8px;
+    border-radius: 5px;
+    background: #e0f7fa;
+    color: #00796b;
+    margin-bottom: 8px;
+}
+
+/* ---- Formulario ---- */
+.allergy-form {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 10px; /* Más espacio para que los elementos sean más visibles */
+    width: 100%;
+}
+
+/* ---- Contenedor del Input y Botón (En la misma línea) ---- */
+.input-button-container {
+    display: flex;
+    width: 100%;
+    max-width: 320px;
+    gap: 5px; /* Espacio entre el input y el botón */
+    align-items: center;
+}
+
+/* ---- Input ---- */
+.input-button-container input {
+    flex: 1; /* Permite que el input ocupe el espacio disponible */
+    padding: 8px;
+    border: 1px solid #ccc;
+    border-radius: 5px;
+    font-size: 14px;
+    width: 100%; /* Asegura que el input sea visible */
+    background-color: white;
+    transition: border-color 0.3s ease, box-shadow 0.3s ease;
+}
+
+/* Asegura que el input sea visible en cualquier pantalla */
+.input-button-container input:focus {
+    border-color: #007acc;
+    outline: none;
+    box-shadow: 0 0 5px rgba(0, 122, 204, 0.5);
+}
+
+/* ---- Botón de Agregar (Mismo estilo que los demás botones) ---- */
+.input-button-container button {
+    background-color: #42a5f5;
+    color: white;
+    border: none;
+    padding: 8px 15px;
+    font-size: 14px;
+    border-radius: 5px;
+    cursor: pointer;
+    font-weight: bold;
+    transition: background 0.3s ease, transform 0.2s ease;
+    min-width: 110px; /* Para evitar que el botón sea muy pequeño */
+    text-align: center;
+}
+
+/* Efecto hover */
+.input-button-container button:hover {
+    background-color: #2196f3;
+}
+
+/* Botón deshabilitado */
+.disabled-btn {
+    background-color: #ccc !important;
+    color: #666 !important;
+    cursor: not-allowed !important;
+}
+
+/* ---- Lista de Alergias ---- */
+.allergy-list {
+    list-style: none;
+    padding: 0;
+    margin-top: 5px;
+    width: 100%;
+    max-width: 320px;
+    text-align: left;
+}
+
+/* ---- Elementos de la Lista ---- */
+.allergy-list li {
+    background: white;
+    border: 1px solid #ddd;
+    padding: 6px;
+    font-size: 14px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    border-radius: 5px;
+    margin-bottom: 4px;
+}
+
+/* ---- Botón de Eliminar ---- */
+.allergy-list button {
+    background-color: #ff5252;
+    color: white;
+    border: none;
+    padding: 5px 8px;
+    font-size: 12px;
+    border-radius: 5px;
+    cursor: pointer;
+    transition: background 0.3s ease;
+    margin-left: 5px;
+}
+
+/* Efecto hover */
+.allergy-list button:hover {
+    background-color: #d32f2f;
+}
+/* ---- Estilo del Botón Guardar Alergias ---- */
+.save-allergies-btn {
+    background-color: #42a5f5; /* Azul */
+    color: white;
+    border: none;
+    padding: 12px 15px;
+    font-size: 16px;
+    border-radius: 5px;
+    cursor: pointer;
+    font-weight: bold;
+    text-transform: uppercase;
+    transition: background 0.3s ease, transform 0.2s ease;
+    width: 100%;
+    max-width: 320px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    box-shadow: 2px 2px 5px rgba(0, 0, 0, 0.2);
+}
+
+/* Efecto hover */
+.save-allergies-btn:hover {
+    background-color: #2196f3;
+}
+
+/* Efecto al hacer clic */
+.save-allergies-btn:active {
+    transform: scale(0.98);
+}
+
+/* Estilo para botón deshabilitado */
+.save-allergies-btn.disabled-btn {
+    background-color: #ccc !important;
+    color: #666 !important;
+    cursor: not-allowed !important;
+    box-shadow: none;
+}
+

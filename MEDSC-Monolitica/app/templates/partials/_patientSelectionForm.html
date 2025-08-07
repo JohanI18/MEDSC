@@ -1,0 +1,178 @@
+<link rel="stylesheet" href="{{ url_for('static', filename='css/attentionForms.css') }}">
+
+<div class="patient-selection-container">
+    <h3 class="form-section-title">
+        {% if view == 'addAttention' %}
+            <i class="fas fa-user-md me-2"></i>Seleccionar Paciente para Nueva Atención
+        {% elif view == 'attentionHistory' %}
+            <i class="fas fa-history me-2"></i>Seleccionar Paciente para Ver Historial
+        {% endif %}
+    </h3>
+    
+    <div class="alert alert-info">
+        <i class="fas fa-info-circle me-2"></i>
+        {% if view == 'addAttention' %}
+            <strong>Paso 1 de 2:</strong> Seleccione el paciente para quien desea registrar una nueva atención médica.
+        {% elif view == 'attentionHistory' %}
+            <strong>Paso 1 de 2:</strong> Seleccione el paciente para ver su historial de atenciones médicas.
+        {% endif %}
+    </div>
+    
+    {% include 'partials/_message.html' %}
+    
+    <form action="{% if view == 'addAttention' %}/select-patient-for-attention{% elif view == 'attentionHistory' %}/get-attention-for-patient{% else %}#{% endif %}" method="POST" class="patient-selection-form">
+        <div class="row g-3">
+            <div class="col-12">
+                <label for="selectedPatient" class="form-label">
+                    <i class="fas fa-user me-1"></i>Paciente *
+                </label>
+                <select name="selectedPatient" id="selectedPatient" class="form-select" required>
+                    <option value="">-- Seleccione un paciente --</option>
+                    {% for patient in available_patients %}
+                        <option value="{{ patient.id }}" 
+                                data-birthdate="{{ patient.birthdate.strftime('%d/%m/%Y') if patient.birthdate else '' }}"
+                                data-blood-type="{{ patient.bloodType or 'No especificado' }}"
+                                data-phone="{{ patient.phoneNumber or 'No registrado' }}">
+                            {{ patient.firstName }} {{ patient.lastName1 }}
+                            {% if patient.lastName2 %} {{ patient.lastName2 }}{% endif %}
+                            ({{ patient.identifierType }}: {{ patient.identifierCode }})
+                        </option>
+                    {% endfor %}
+                </select>
+            </div>
+            
+            {% if available_patients %}
+                <div class="col-12">
+                    <div class="patient-search-container">
+                        <label for="patientSearch" class="form-label">
+                            <i class="fas fa-search me-1"></i>Buscar paciente:
+                        </label>
+                        <input type="text" id="patientSearch" class="form-control" 
+                               placeholder="Escriba el nombre, apellido o código de identificación...">
+                        <small class="form-text text-muted">
+                            La búsqueda filtra automáticamente la lista de pacientes
+                        </small>
+                    </div>
+                </div>
+                
+                <!-- Preview area for selected patient -->
+                <div class="col-12">
+                    <div id="patientPreview" class="patient-preview" style="display: none;">
+                        <h5><i class="fas fa-eye me-1"></i>Vista previa del paciente seleccionado:</h5>
+                        <div class="preview-card">
+                            <div id="previewContent"></div>
+                        </div>
+                    </div>
+                </div>
+            {% endif %}
+        </div>
+        
+        <div class="form-actions mt-4">
+            {% if view == 'addAttention' %}
+                <button type="submit" class="btn btn-primary btn-lg" id="continueBtn" disabled>
+                    <i class="fas fa-user-check me-2"></i>Continuar con este Paciente
+                </button>
+            {% elif view == 'attentionHistory' %}
+                <button type="submit" class="btn btn-primary btn-lg" id="continueBtn" disabled>
+                    <i class="fas fa-history me-2"></i>Ver Historial de Paciente
+                </button>
+            {% endif %}
+        </div>
+    </form>
+    
+    {% if not available_patients %}
+        <div class="alert alert-warning mt-4">
+            <i class="fas fa-exclamation-triangle me-2"></i>
+            <strong>No hay pacientes registrados.</strong><br>
+            Debe registrar al menos un paciente antes de crear una atención médica.
+            <div class="mt-2">
+                <a href="{{ url_for('clinic.home', view='addPatient', sec_view='addPatient') }}" 
+                   class="btn btn-outline-primary">
+                    <i class="fas fa-user-plus me-1"></i>Registrar Nuevo Paciente
+                </a>
+            </div>
+        </div>
+    {% endif %}
+</div>
+
+<script>
+// Enhanced functionality for patient selection
+document.addEventListener('DOMContentLoaded', function() {
+    const searchInput = document.getElementById('patientSearch');
+    const selectElement = document.getElementById('selectedPatient');
+    const continueBtn = document.getElementById('continueBtn');
+    const patientPreview = document.getElementById('patientPreview');
+    const previewContent = document.getElementById('previewContent');
+    
+    if (searchInput && selectElement) {
+        // Search functionality
+        searchInput.addEventListener('input', function() {
+            const searchTerm = this.value.toLowerCase();
+            const options = selectElement.options;
+            
+            for (let i = 1; i < options.length; i++) { // Skip first option (placeholder)
+                const optionText = options[i].text.toLowerCase();
+                
+                if (optionText.includes(searchTerm)) {
+                    options[i].style.display = '';
+                } else {
+                    options[i].style.display = 'none';
+                }
+            }
+        });
+        
+        // Patient selection handler
+        selectElement.addEventListener('change', function() {
+            const selectedOption = this.options[this.selectedIndex];
+            
+            if (this.value) {
+                continueBtn.disabled = false;
+                
+                // Show preview
+                const patientName = selectedOption.text.split('(')[0].trim();
+                const identifierInfo = selectedOption.text.match(/\((.*?)\)/)[1];
+                const birthdate = selectedOption.getAttribute('data-birthdate');
+                const bloodType = selectedOption.getAttribute('data-blood-type');
+                const phone = selectedOption.getAttribute('data-phone');
+                
+                previewContent.innerHTML = `
+                    <div class="row">
+                        <div class="col-md-8">
+                            <h6 class="text-primary">${patientName}</h6>
+                            <p class="mb-1"><strong>Identificación:</strong> ${identifierInfo}</p>
+                            <p class="mb-1"><strong>Fecha de Nacimiento:</strong> ${birthdate}</p>
+                            <p class="mb-1"><strong>Tipo de Sangre:</strong> ${bloodType}</p>
+                            <p class="mb-0"><strong>Teléfono:</strong> ${phone}</p>
+                        </div>
+                        <div class="col-md-4 text-end">
+                            <i class="fas fa-user-circle fa-3x text-primary"></i>
+                        </div>
+                    </div>
+                `;
+                
+                patientPreview.style.display = 'block';
+            } else {
+                continueBtn.disabled = true;
+                patientPreview.style.display = 'none';
+            }
+        });
+        
+        // Auto-select if only one option matches search
+        searchInput.addEventListener('keyup', function() {
+            const searchTerm = this.value.toLowerCase();
+            let visibleOptions = [];
+            
+            for (let i = 1; i < selectElement.options.length; i++) {
+                if (selectElement.options[i].style.display !== 'none') {
+                    visibleOptions.push(selectElement.options[i]);
+                }
+            }
+            
+            if (visibleOptions.length === 1 && searchTerm.length > 2) {
+                selectElement.value = visibleOptions[0].value;
+                selectElement.dispatchEvent(new Event('change'));
+            }
+        });
+    }
+});
+</script>

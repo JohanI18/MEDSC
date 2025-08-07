@@ -1,0 +1,26 @@
+<link rel="stylesheet" href="{{ url_for('static', filename='css/allergiesForm.css') }}">
+
+<h2 class="allergy-title">Agregar Alergias</h2>
+    
+{% include 'partials/_message.html' %}
+
+<form action="/add-allergies" class="allergy-form" method="POST">
+    <div class="input-button-container">
+        <input type="text" name="allergy" placeholder="Ingrese una alergia" required>
+        <button type="submit">Agregar</button>
+    </div>
+</form>
+
+<div class="allergy-list-container">
+    <ul class="allergy-list">
+        {% for allergy in allergies %}
+            <li>
+                <span>{{ allergy }}</span>
+                <form action="/remove-allergy" method="POST" style="display: inline;">
+                    <input type="hidden" name="allergy" value="{{ allergy }}">
+                    <button type="submit" class="btn-remove">Eliminar</button>
+                </form>
+            </li>
+        {% endfor %}
+    </ul>
+</div>

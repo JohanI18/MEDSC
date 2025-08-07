@@ -1,0 +1,85 @@
+<link rel="stylesheet" href="{{ url_for('static', filename='css/attentionForms.css') }}">
+
+<h3 class="form-section-title">Diagnóstico</h3>
+
+{% include 'partials/_message.html' %}
+
+<form action="/add-diagnostic" method="POST" class="diagnostic-form">
+    <div class="row g-3">
+        <div class="col-md-6">
+            <label for="cie10Code" class="form-label">Código CIE-10 *</label>
+            <input type="text" name="cie10Code" id="cie10Code" class="form-control" 
+                   placeholder="A00.0" required>
+        </div>
+        
+        <div class="col-md-6">
+            <label for="disease" class="form-label">Enfermedad *</label>
+            <input type="text" name="disease" id="disease" class="form-control" 
+                   placeholder="Nombre de la enfermedad" required>
+        </div>
+        
+        <div class="col-12">
+            <label for="observations" class="form-label">Observaciones *</label>
+            <textarea name="observations" id="observations" class="form-control" rows="4" 
+                      placeholder="Observaciones clínicas y detalles del diagnóstico..." required></textarea>
+        </div>
+        
+        <div class="col-md-6">
+            <label for="diagnosticCondition" class="form-label">Condición Diagnóstica *</label>
+            <select name="diagnosticCondition" id="diagnosticCondition" class="form-select" required>
+                <option value="">Seleccione condición</option>
+                <option value="Confirmado">Confirmado</option>
+                <option value="Presuntivo">Presuntivo</option>
+                <option value="Diferencial">Diferencial</option>
+                <option value="Descartado">Descartado</option>
+            </select>
+        </div>
+        
+        <div class="col-md-6">
+            <label for="chronology" class="form-label">Cronología *</label>
+            <select name="chronology" id="chronology" class="form-select" required>
+                <option value="">Seleccione cronología</option>
+                <option value="Agudo">Agudo</option>
+                <option value="Subagudo">Subagudo</option>
+                <option value="Crónico">Crónico</option>
+                <option value="Recurrente">Recurrente</option>
+            </select>
+        </div>
+    </div>
+    
+    <div class="form-actions mt-4">
+        <button type="submit" class="btn btn-primary">
+            <i class="fas fa-plus me-2"></i>Agregar Diagnóstico
+        </button>
+    </div>
+</form>
+
+<div class="diagnostic-list-container mt-4">
+    <h4>Diagnósticos Registrados</h4>
+    <ul class="diagnostic-list">
+        {% for diagnostic in diagnostics %}
+            <li class="diagnostic-item">
+                <div class="diagnostic-details">
+                    <strong>{{ diagnostic.cie10Code }} - {{ diagnostic.disease }}</strong>
+                    <p><strong>Condición:</strong> {{ diagnostic.diagnosticCondition }} | <strong>Cronología:</strong> {{ diagnostic.chronology }}</p>
+                    <p>{{ diagnostic.observations }}</p>
+                </div>
+                <form action="/remove-diagnostic" method="POST" style="display: inline;">
+                    <input type="hidden" name="index" value="{{ loop.index0 }}">
+                    <button type="submit" class="btn btn-sm btn-danger">Eliminar</button>
+                </form>
+            </li>
+        {% endfor %}
+    </ul>
+    
+    <!-- Continue to next step button -->
+    {% if diagnostics %}
+        <div class="continue-step-container mt-4">
+            <form action="/continue-to-treatments" method="POST">
+                <button type="submit" class="btn btn-success btn-lg">
+                    <i class="fas fa-arrow-right me-2"></i>Continuar a Tratamientos
+                </button>
+            </form>
+        </div>
+    {% endif %}
+</div>

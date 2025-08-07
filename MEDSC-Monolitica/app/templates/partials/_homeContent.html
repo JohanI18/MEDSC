@@ -1,0 +1,135 @@
+<div class="dashboard-container">
+  <!-- Welcome Header -->
+  <div class="welcome-header">
+    <h1 class="dashboard-title">
+      <i class="fas fa-stethoscope me-3"></i>
+      Sistema de Gestión Médica
+    </h1>
+    {% if doctor_info %}
+      <p class="welcome-message">
+        Bienvenido, Dr. {{ doctor_info.firstName }} {{ doctor_info.lastName1 }}
+        <span class="speciality">{{ doctor_info.speciality }}</span>
+      </p>
+    {% endif %}
+  </div>
+
+  <!-- Quick Stats Cards -->
+  <div class="stats-grid">
+    <div class="stat-card">
+      <div class="stat-icon patients">
+        <i class="fas fa-users"></i>
+      </div>
+      <div class="stat-content">
+        <h3>{{ patients|length if patients else 0 }}</h3>
+        <p>Pacientes Registrados</p>
+      </div>
+    </div>
+    
+    <div class="stat-card">
+      <div class="stat-icon consultations">
+        <i class="fas fa-clipboard-list"></i>
+      </div>
+      <div class="stat-content">
+        <h3>{{ recent_consultations if recent_consultations else 0 }}</h3>
+        <p>Consultas Hoy</p>
+      </div>
+    </div>
+    
+    <div class="stat-card">
+      <div class="stat-icon messages">
+        <i class="fas fa-comments"></i>
+      </div>
+      <div class="stat-content">
+        <h3>{{ unread_messages if unread_messages else 0 }}</h3>
+        <p>Mensajes Pendientes</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- Quick Actions -->
+  <div class="quick-actions">
+    <h2><i class="fas fa-bolt me-2"></i>Acciones Rápidas</h2>
+    <div class="actions-grid">
+      <form action="{{ url_for('clinic.home', view='addPatient', sec_view='addPatient') }}" method="POST">
+        <button type="submit" class="action-card new-patient">
+          <div class="action-icon">
+            <i class="fas fa-user-plus"></i>
+          </div>
+          <div class="action-content">
+            <h3>Nuevo Paciente</h3>
+            <p>Registrar un nuevo paciente en el sistema</p>
+          </div>
+        </button>
+      </form>
+      
+      <form action="{{ url_for('clinic.home', view='addAttention') }}" method="POST">
+        <button type="submit" class="action-card new-attention">
+          <div class="action-icon">
+            <i class="fas fa-stethoscope"></i>
+          </div>
+          <div class="action-content">
+            <h3>Nueva Consulta</h3>
+            <p>Registrar una nueva atención médica</p>
+          </div>
+        </button>
+      </form>
+      
+      <form action="{{ url_for('clinic.home', view='patients') }}" method="POST">
+        <button type="submit" class="action-card view-patients">
+          <div class="action-icon">
+            <i class="fas fa-users"></i>
+          </div>
+          <div class="action-content">
+            <h3>Ver Pacientes</h3>
+            <p>Consultar lista completa de pacientes</p>
+          </div>
+        </button>
+      </form>
+      
+      <form action="{{ url_for('chat.chat_view') }}" method="GET">
+        <button type="submit" class="action-card chat">
+          <div class="action-icon">
+            <i class="fas fa-comments"></i>
+          </div>
+          <div class="action-content">
+            <h3>Chat Médico</h3>
+            <p>Comunicarse con otros profesionales</p>
+          </div>
+        </button>
+      </form>
+    </div>
+  </div>
+
+  <!-- Medical Information Section -->
+  <div class="medical-info">
+    <div class="info-card schedule">
+      <h3><i class="fas fa-calendar-alt me-2"></i>Información del Sistema</h3>
+      <div class="schedule-content">
+        <div class="schedule-item">
+          <i class="fas fa-clock me-2"></i>
+          <span>Sistema activo 24/7</span>
+        </div>
+        <div class="schedule-item">
+          <i class="fas fa-shield-alt me-2"></i>
+          <span>Datos protegidos y seguros</span>
+        </div>
+        <div class="schedule-item">
+          <i class="fas fa-cloud me-2"></i>
+          <span>Respaldo automático en la nube</span>
+        </div>
+      </div>
+    </div>
+    
+    <div class="info-card tips">
+      <h3><i class="fas fa-lightbulb me-2"></i>Consejos del Sistema</h3>
+      <div class="tips-content">
+        <ul>
+          <li>Mantén siempre actualizada la información de los pacientes</li>
+          <li>Utiliza el chat para consultas rápidas con colegas</li>
+          <li>Revisa regularmente las consultas programadas</li>
+          <li>Recuerda completar todos los campos requeridos en las atenciones</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+</div>

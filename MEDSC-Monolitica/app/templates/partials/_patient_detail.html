@@ -1,0 +1,197 @@
+<!-- Header -->
+<div class="modal-header border-0 pb-0">
+  <h5 class="modal-title"><i class="fas fa-user me-2"></i> Detalles del Paciente</h5>
+  <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Cerrar"></button>
+</div>
+
+<!-- Body -->
+<div class="modal-body pt-2">
+
+  <!-- Info Personal & Médica -->
+  <div class="row g-3">
+    <!-- Información Personal -->
+    <!-- Información Personal -->
+<div class="col-lg-8">
+  <div class="card shadow-sm border-0">
+    <div class="card-header bg-primary text-white fw-semibold">
+      <i class="fas fa-id-badge me-2"></i> Información Personal
+    </div>
+    <div class="card-body">
+      <div class="row g-2">
+        <div class="col-md-4">
+          <p><strong>Nombre Completo:</strong><br> {{ patient.firstName }} {{ patient.middleName or '' }} {{ patient.lastName1 }} {{ patient.lastName2 }}</p>
+          <p><strong>Identificación:</strong><br> {{ patient.identifierType }} {{ patient.identifierCode }}</p>
+          <p><strong>Fecha de Nacimiento:</strong><br> {{ patient.birthdate }}</p>
+        </div>
+        <div class="col-md-4">
+          <p><strong>Género:</strong><br> {{ patient.gender }}</p>
+          <p><strong>Sexo:</strong><br> {{ patient.sex }}</p>
+          <p><strong>Teléfono:</strong><br> {{ patient.phoneNumber or 'No registrado' }}</p>
+          <p><strong>Email:</strong><br> {{ patient.email or 'No registrado' }}</p>
+        </div>
+        <div class="col-md-4">
+          <p><strong>Dirección:</strong><br> {{ patient.address }}</p>
+          <p><strong>Nacionalidad:</strong><br> {{ patient.nationality }}</p>
+          <p><strong>Estado Civil:</strong><br> {{ patient.civilStatus }}</p>
+          <p><strong>Ocupación:</strong><br> {{ patient.job }}</p>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+
+    <!-- Información Médica -->
+<div class="col-lg-4">
+  <div class="card shadow-sm border-0 h-100">
+    <div class="card-header bg-danger text-white fw-semibold">
+      <i class="fas fa-droplet me-2"></i> Información Médica
+    </div>
+    <div class="card-body d-flex flex-column justify-content-center align-items-center">
+      <h6 class="text-dark fw-bold mb-2">Tipo de Sangre</h6>
+      <div class="fs-1">🩸</div>
+      <span class="badge rounded-pill bg-danger mt-2 px-3 py-2">
+  {{ patient.bloodType or 'N/A' }}
+</span>
+
+    </div>
+  </div>
+</div>
+
+
+  <!-- Secciones Inferiores -->
+  <div class="row g-3 mt-3">
+
+    <!-- Fila 1: Alergias y Contactos -->
+<div class="row g-3 mt-3">
+  <!-- Alergias -->
+  <div class="col-md-6">
+    <div class="card border-warning shadow-sm h-40">
+      <div class="card-header bg-warning fw-semibold">
+        <i class="fas fa-exclamation-triangle me-2"></i> Alergias
+      </div>
+      <div class="card-body">
+        {% if allergies %}
+          <ul class="list-group list-group-flush">
+            {% for allergy in allergies %}
+              <li class="list-group-item">{{ allergy.allergies }}</li>
+            {% endfor %}
+          </ul>
+        {% else %}
+          <p class="text-muted mb-0">No se han registrado alergias</p>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+
+
+<!-- Contactos de Emergencia -->
+<div class="col-md-6">
+  <div class="card border-success shadow-sm">
+    <div class="card-header bg-success text-white fw-semibold">
+      <i class="fas fa-user-friends me-2"></i> Contactos de Emergencia
+    </div>
+    <div class="card-body">
+      {% if contacts %}
+        <div class="row g-3">
+          {% for c in contacts %}
+          <div class="col-12">
+            <div class="border rounded p-3 text-center bg-light">
+              <h6 class="fw-bold mb-1">
+                 {{ c.firstName }} {{ c.lastName }}
+              </h6>
+              <p class="text-muted mb-2"> {{ c.relationship }}</p>
+
+              <div class="mb-2">
+                📞 
+                {% if c.phoneNumber1 %}
+                  <span class="badge bg-success-subtle text-dark border me-1">{{ c.phoneNumber1 }}</span>
+                {% endif %}
+                {% if c.phoneNumber2 %}
+                  <span class="badge bg-success-subtle text-dark border">{{ c.phoneNumber2 }}</span>
+                {% endif %}
+              </div>
+
+              <p class="text-muted small mb-0">
+                 {{ c.address }}
+              </p>
+            </div>
+          </div>
+          {% endfor %}
+        </div>
+      {% else %}
+        <p class="text-muted mb-0">No se han registrado contactos de emergencia</p>
+      {% endif %}
+    </div>
+  </div>
+</div>
+
+
+
+
+
+<!-- Fila 2: Condiciones y Antecedentes -->
+<div class="row g-3 mt-2">
+  <!-- Condiciones Preexistentes -->
+  <div class="col-md-6">
+    <div class="card border-info shadow-sm h-100">
+      <div class="card-header bg-info text-white fw-semibold">
+        <i class="fas fa-heartbeat me-2"></i> Condiciones Preexistentes
+      </div>
+      <div class="card-body">
+        {% if conditions %}
+          <ul class="list-group list-group-flush">
+            {% for c in conditions %}
+              <li class="list-group-item">
+                <strong>{{ c.diseaseName }}</strong><br>
+                Tiempo: {{ c.time }}<br>
+                Medicamento: {{ c.medicament or 'N/A' }}<br>
+                Tratamiento: {{ c.treatment or 'N/A' }}
+              </li>
+            {% endfor %}
+          </ul>
+        {% else %}
+          <p class="text-muted mb-0">No se han registrado condiciones preexistentes</p>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+
+  <!-- Antecedentes Familiares -->
+  <div class="col-md-6">
+    <div class="card border-dark shadow-sm h-100">
+      <div class="card-header bg-dark text-white fw-semibold">
+        <i class="fas fa-users me-2"></i> Antecedentes Familiares
+      </div>
+      <div class="card-body">
+        {% if backgrounds %}
+          <ul class="list-group list-group-flush">
+            {% for bg in backgrounds %}
+              <li class="list-group-item">
+                <strong>{{ bg.familyBackground }}</strong><br>
+                Tiempo: {{ bg.time }}<br>
+                Relación: {{ bg.degreeRelationship }}
+              </li>
+            {% endfor %}
+          </ul>
+        {% else %}
+          <p class="text-muted mb-0">No se han registrado antecedentes familiares</p>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+</div>
+
+
+
+
+<!-- Footer -->
+<div class="modal-footer border-0">
+  <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+    <i class="fas fa-times me-1"></i> Cerrar
+  </button>
+  <a href="{{ url_for('patients.editar_paciente', patient_id=patient.id) }}" class="btn btn-primary">
+  <i class="fas fa-edit me-1"></i> Editar Paciente
+</a>
+
+</div>

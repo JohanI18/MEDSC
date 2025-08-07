@@ -1,0 +1,33 @@
+# docker-compose.yml
+version: '3.8'
+
+services:
+  db:
+    image: mysql:8.0 # O la versión que prefieras, por ejemplo, mysql:latest
+    container_name: clinic_mysql_db
+    restart: always
+    env_file:
+      - ./.env # Carga las variables de entorno desde el archivo .env
+    environment:
+      # Estas variables son para configurar el MySQL dentro del contenedor
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD} # Usará la del .env
+      MYSQL_DATABASE: ${MYSQL_DATABASE}
+      MYSQL_USER: ${MYSQL_USER}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD}
+    ports:
+      - "${MYSQL_PORT}:${MYSQL_PORT}" # Mapea el puerto 3306 del host al 3306 del contenedor
+    volumes:
+      - mysql_data:/var/lib/mysql # Persistencia de datos para que no se pierdan al detener el contenedor
+
+  phpmyadmin:
+    image: phpmyadmin/phpmyadmin
+    container_name: phpmyadmin
+    restart: always
+    environment:
+      PMA_HOST: db
+      MYSQL_ROOT_PASSWORD: root
+    ports:
+      - "8080:80"
+
+volumes:
+  mysql_data: # Define el volumen de datos

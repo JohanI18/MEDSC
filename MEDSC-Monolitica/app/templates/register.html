@@ -1,0 +1,42 @@
+<link rel="stylesheet" href="{{ url_for('static', filename='css/login.css') }}">
+
+{% extends 'layout.html' %}
+
+{% block body %}
+<div class="container d-flex align-items-center justify-content-center min-vh-100">
+    <div class="card shadow p-4" style="max-width: 400px; width: 100%;">
+        <h2 class="text-center text-success mb-4">Registro - Supabase</h2>
+
+        {% include 'partials/_message.html' %}
+
+        <form action="{{ url_for('login.register') }}" method="POST">
+            <div class="mb-3">
+                <label for="full_name" class="form-label">Nombre Completo</label>
+                <input type="text" class="form-control" id="full_name" name="full_name" placeholder="Juan Pérez" required>
+            </div>
+
+            <div class="mb-3">
+                <label for="email" class="form-label">Email</label>
+                <input type="email" class="form-control" id="email" name="email" placeholder="usuario@email.com" required>
+            </div>
+
+            <div class="mb-3">
+                <label for="password" class="form-label">Contraseña</label>
+                <input type="password" class="form-control" id="password" name="password" placeholder="••••••••" required>
+                <small class="form-text text-muted">Mínimo 6 caracteres</small>
+            </div>
+
+            <div class="mb-3">
+                <label for="confirm_password" class="form-label">Confirmar Contraseña</label>
+                <input type="password" class="form-control" id="confirm_password" name="confirm_password" placeholder="••••••••" required>
+            </div>
+
+            <button type="submit" class="btn btn-success w-100 mb-2">Registrarse</button>
+            
+            <div class="text-center">
+                <a href="{{ url_for('login.new_login') }}" class="text-muted">¿Ya tienes cuenta? Inicia sesión</a>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}

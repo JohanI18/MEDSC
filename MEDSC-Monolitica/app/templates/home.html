@@ -1,0 +1,126 @@
+<link rel="stylesheet" href="{{ url_for('static', filename='css/home.css') }}">
+
+{% extends 'layout.html' %}
+
+<!-- {% block title %}Login{% endblock %} -->
+
+{% block body %}
+
+
+<div class="app-container">
+    <aside class="sidebar">
+        <div class="profile-section">
+            <div class="profile-pic"></div>
+            {% if doctor_info %}
+                <p class="doctor-name">Dr. {{ doctor_info.firstName }} {{ doctor_info.lastName1 }}</p>
+                <p class="doctor-role">{{ doctor_info.speciality }}</p>
+            {% else %}
+                <p class="doctor-name loading">Cargando...</p>
+                <p class="doctor-role loading">...</p>
+            {% endif %}
+        </div>
+
+        <nav>
+            <ul>
+                <li>
+                    <form action="{{ url_for('clinic.home', view='patients') }}" method="POST">
+                        <button class="nav-button">
+                            <i class="fas fa-users me-2"></i>PACIENTES
+                        </button>
+                    </form>
+                </li>
+                <li>
+                    <form action="{{ url_for('clinic.home', view='addAttention') }}" method="POST">
+                        <button class="nav-button">
+                            <i class="fas fa-stethoscope me-2"></i>AGREGAR ATENCIÓN
+                        </button>
+                    </form>
+                </li>
+                                <li>
+                    <form action="{{ url_for('clinic.home', view='attentionHistory') }}" method="POST">
+                        <button class="nav-button">
+                            <i class="fas fa-stethoscope me-2"></i>HISTORIAL DE ATENCIONES
+                        </button>
+                    </form>
+                </li>
+
+                <li>
+                    <form action="{{ url_for('chat.chat_view') }}" method="GET">
+                        <button class="nav-button">
+                            <i class="fas fa-comments me-2"></i>CHAT MÉDICO
+                        </button>
+                    </form>
+                </li>
+            </ul>
+        </nav>
+        
+        <!-- Logout section at bottom -->
+        <div class="logout-section">
+            <form action="{{ url_for('login.logout') }}" method="POST" onsubmit="return confirmLogout()">
+                <button type="submit" class="logout-button">
+                    <i class="fas fa-sign-out-alt me-2"></i>Cerrar Sesión
+                </button>
+            </form>
+        </div>
+    </aside>
+    
+    <main class="main-content">
+        {% if view == 'home' %}
+            {% include 'partials/_homeContent.html' %}
+        {% elif view == 'patients' %}
+        <div class="patient-container" style="max-width: 1600px; padding: 40px;">
+            <h1 class="patient-title">Lista de Pacientes</h1>
+
+            {% include 'partials/_patientList.html' %}
+
+            <form action="{{ url_for('clinic.home', view='home') }}">
+                <button class="patient-back-link"> ← Volver </button>    
+            </form>
+        </div>
+        {% elif view == 'addPatient' %}
+        <div class="patient-container" style="max-width: 1600px; padding: 40px;">
+            <h1 class="patient-title">Agregar Paciente</h1>
+
+            {% include 'partials/_addPatient.html' %}
+
+            <form action="{{ url_for('clinic.home', view='patients') }}">
+                <button class="patient-back-link"> ← Volver a Pacientes </button>    
+            </form>
+        </div>
+        {% elif view == 'addAttention' %}
+        <div class="attention-container">
+            <h1 class="attention-title">Agregar Atención</h1>
+
+            {% include 'partials/_addAttention.html' %}
+
+            
+            <form action="{{ url_for('clinic.home', view='home') }}">
+                <button class="patient-back-link"> ← Volver </button>    
+            </form>
+
+            <!-- <button class="patient-back-link"> ← Volver </button> -->
+        </div>
+        {% elif view == 'attentionHistory' %}
+        <div class="attention-container">
+            <h1 class="attention-title">Historial de Atenciones</h1>
+
+            {% include 'partials/_attentionHistory.html' %}
+
+
+            <form action="{{ url_for('clinic.home', view='home') }}">
+                <button class="patient-back-link"> ← Volver </button>    
+            </form>
+
+            <!-- <button class="patient-back-link"> ← Volver </button> -->
+        </div>
+        {% endif %}
+    </main>
+</div>
+
+<script>
+function confirmLogout() {
+    return confirm('¿Está seguro que desea cerrar sesión?');
+}
+</script>
+
+{% endblock %}

@@ -1,0 +1,155 @@
+<link rel="stylesheet" href="{{ url_for('static', filename='css/attentionForms.css') }}">
+
+<h3 class="form-section-title">Exámenes Extras</h3>
+
+{% include 'partials/_message.html' %}
+
+<!-- Histopatología -->
+<div class="form-section">
+    <h4 class="subsection-title">Histopatología</h4>
+    <form action="/add-histopathology" method="POST" class="histopathology-form">
+        <div class="row g-3">
+            <div class="col-12">
+                <label for="histopathology" class="form-label">Resultado Histopatológico</label>
+                <textarea name="histopathology" id="histopathology" class="form-control" rows="4" 
+                          placeholder="Describa los hallazgos histopatológicos..."></textarea>
+            </div>
+        </div>
+        <div class="form-actions mt-3">
+            <button type="submit" class="btn btn-secondary">
+                <i class="fas fa-plus me-2"></i>Agregar Histopatología
+            </button>
+        </div>
+    </form>
+    
+    <!-- Lista de histopatologías agregadas -->
+    <div class="exam-list-container mt-3">
+        <ul class="exam-list">
+            {% for histo in histopathologies %}
+                <li class="exam-item">
+                    <div class="exam-details">
+                        <strong>Histopatología</strong>
+                        <p>{{ histo.histopathology }}</p>
+                    </div>
+                    <form action="/remove-histopathology" method="POST" style="display: inline;">
+                        <input type="hidden" name="index" value="{{ loop.index0 }}">
+                        <button type="submit" class="btn btn-sm btn-danger">Eliminar</button>
+                    </form>
+                </li>
+            {% endfor %}
+        </ul>
+    </div>
+</div>
+
+<!-- Imagenología -->
+<div class="form-section mt-4">
+    <h4 class="subsection-title">Imagenología</h4>
+    <form action="/add-imaging" method="POST" class="imaging-form">
+        <div class="row g-3">
+            <div class="col-md-6">
+                <label for="typeImaging" class="form-label">Tipo de Imagen *</label>
+                <select name="typeImaging" id="typeImaging" class="form-select" required>
+                    <option value="">Seleccione tipo</option>
+                    <option value="Radiografía">Radiografía</option>
+                    <option value="Tomografía">Tomografía</option>
+                    <option value="Resonancia Magnética">Resonancia Magnética</option>
+                    <option value="Ecografía">Ecografía</option>
+                    <option value="Mamografía">Mamografía</option>
+                    <option value="Angiografía">Angiografía</option>
+                    <option value="Densitometría">Densitometría</option>
+                    <option value="PET Scan">PET Scan</option>
+                </select>
+            </div>
+            <div class="col-12">
+                <label for="imaging" class="form-label">Resultado de Imagen *</label>
+                <textarea name="imaging" id="imaging" class="form-control" rows="4" 
+                          placeholder="Describa los hallazgos imagenológicos..." required></textarea>
+            </div>
+        </div>
+        <div class="form-actions mt-3">
+            <button type="submit" class="btn btn-secondary">
+                <i class="fas fa-plus me-2"></i>Agregar Imagen
+            </button>
+        </div>
+    </form>
+    
+    <!-- Lista de imágenes agregadas -->
+    <div class="exam-list-container mt-3">
+        <ul class="exam-list">
+            {% for img in imagings %}
+                <li class="exam-item">
+                    <div class="exam-details">
+                        <strong>{{ img.typeImaging }}</strong>
+                        <p>{{ img.imaging }}</p>
+                    </div>
+                    <form action="/remove-imaging" method="POST" style="display: inline;">
+                        <input type="hidden" name="index" value="{{ loop.index0 }}">
+                        <button type="submit" class="btn btn-sm btn-danger">Eliminar</button>
+                    </form>
+                </li>
+            {% endfor %}
+        </ul>
+    </div>
+</div>
+
+<!-- Laboratorio -->
+<div class="form-section mt-4">
+    <h4 class="subsection-title">Laboratorio</h4>
+    <form action="/add-laboratory" method="POST" class="laboratory-form">
+        <div class="row g-3">
+            <div class="col-md-6">
+                <label for="typeExam" class="form-label">Tipo de Examen *</label>
+                <select name="typeExam" id="typeExam" class="form-select" required>
+                    <option value="">Seleccione tipo</option>
+                    <option value="Hemograma">Hemograma</option>
+                    <option value="Química Sanguínea">Química Sanguínea</option>
+                    <option value="Uroanálisis">Uroanálisis</option>
+                    <option value="Coprológico">Coprológico</option>
+                    <option value="Microbiología">Microbiología</option>
+                    <option value="Serología">Serología</option>
+                    <option value="Hormonal">Hormonal</option>
+                    <option value="Marcadores Tumorales">Marcadores Tumorales</option>
+                    <option value="Gasometría">Gasometría</option>
+                    <option value="Cultivos">Cultivos</option>
+                </select>
+            </div>
+            <div class="col-12">
+                <label for="exam" class="form-label">Resultado de Laboratorio *</label>
+                <textarea name="exam" id="exam" class="form-control" rows="4" 
+                          placeholder="Describa los resultados de laboratorio..." required></textarea>
+            </div>
+        </div>
+        <div class="form-actions mt-3">
+            <button type="submit" class="btn btn-secondary">
+                <i class="fas fa-plus me-2"></i>Agregar Laboratorio
+            </button>
+        </div>
+    </form>
+    
+    <!-- Lista de laboratorios agregados -->
+    <div class="exam-list-container mt-3">
+        <ul class="exam-list">
+            {% for lab in laboratories %}
+                <li class="exam-item">
+                    <div class="exam-details">
+                        <strong>{{ lab.typeExam }}</strong>
+                        <p>{{ lab.exam }}</p>
+                    </div>
+                    <form action="/remove-laboratory" method="POST" style="display: inline;">
+                        <input type="hidden" name="index" value="{{ loop.index0 }}">
+                        <button type="submit" class="btn btn-sm btn-danger">Eliminar</button>
+                    </form>
+                </li>
+            {% endfor %}
+        </ul>
+    </div>
+</div>
+
+<!-- Continue to next step button -->
+<div class="continue-step-container mt-5">
+    <form action="/continue-to-evolution" method="POST">
+        <button type="submit" class="btn btn-success btn-lg">
+            <i class="fas fa-arrow-right me-2"></i>Continuar a Evolución (Paso Final)
+        </button>
+    </form>
+</div>

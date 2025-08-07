@@ -1,0 +1,111 @@
+/* ---- Contenedor principal ---- */
+.login-container {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    height: 100vh;
+    background: linear-gradient(
+        to bottom right,
+        oklab(59.61% 0.045 -0.113),
+        oklab(84.22% -0.106 -0.031)
+    ); /* Degradado azul suave */
+    position: relative;
+}
+
+/* ---- Caja de Login ---- */
+.login-box {
+    background-color: white;
+    padding: 40px;
+    border-radius: 10px;
+    box-shadow: 0px 4px 10px rgba(0, 0, 0, 0.2);
+    text-align: center;
+    width: 350px;
+    display: flex;
+    flex-direction: column;
+    /* align-items: center; */
+}
+
+/* ---- Contenedor de cada campo ---- */
+.input-group {
+    width: 100%;
+    max-width: 320px; /* Asegura que el ancho es el mismo para inputs y botón */
+    display: flex;
+    flex-direction: column;
+}
+
+/* ---- Título ---- */
+.login-title {
+    color: #007acc;
+    font-size: 24px;
+    font-weight: bold;
+    margin-bottom: 20px;
+}
+
+/* ---- Etiquetas ---- */
+label {
+    font-weight: bold;
+    margin-bottom: 5px;
+    color: #333;
+    text-align: left;
+    width: 100%;
+}
+
+/* ---- Inputs (Mismo tamaño que el botón) ---- */
+.login-input {
+    width: 100%;
+    max-width: 320px; /* Mismo ancho que el botón */
+    padding: 14px;
+    margin-bottom: 15px;
+    border: 1px solid #ccc;
+    background-color: white;
+    border-radius: 10px;
+    font-size: 16px;
+    outline: none;
+    text-align: left;
+    padding-left: 15px;
+    box-sizing: border-box; /* Evita que el padding afecte el tamaño total */
+}
+
+/* ---- Botón de Login (Mismo tamaño que los inputs) ---- */
+.login-button {
+    width: 100%;
+    max-width: 320px; /* Mismo ancho que los inputs */
+    padding: 14px;
+    border: none;
+    background-color: #007acc;
+    color: white;
+    font-size: 16px;
+    font-weight: bold;
+    border-radius: 10px;
+    cursor: pointer;
+    transition: background 0.3s ease, transform 0.2s ease;
+    box-sizing: border-box; /* Asegura que su tamaño incluya el padding */
+}
+
+/* ---- Hover del botón ---- */
+.login-button:hover {
+    background-color: #005f99;
+    transform: scale(1.02);
+}
+
+body {
+    background: linear-gradient(
+        to bottom right,
+        oklab(59.61% 0.045 -0.113),
+        oklab(84.22% -0.106 -0.031)
+    );
+}
+
+/* ---- Responsive para móviles ---- */
+@media (max-width: 480px) {
+    .login-box {
+        width: 90%;
+        padding: 30px;
+    }
+
+    .input-group,
+    .login-input,
+    .login-button {
+        max-width: 90%;
+    }
+}

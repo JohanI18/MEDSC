@@ -1,0 +1,66 @@
+<link rel="stylesheet" href="{{ url_for('static', filename='css/attentionForms.css') }}">
+
+<h3 class="form-section-title">Examen Físico Regional</h3>
+
+{% include 'partials/_message.html' %}
+
+<form action="/add-physical-exam" method="POST" class="physical-exam-form">
+    <div class="row g-3">
+        <div class="col-md-6">
+            <label for="typeExamination" class="form-label">Tipo de Examen *</label>
+            <select name="typeExamination" id="typeExamination" class="form-select" required>
+                <option value="">Seleccione tipo de examen</option>
+                <option value="Cabeza y Cuello">Cabeza y Cuello</option>
+                <option value="Tórax">Tórax</option>
+                <option value="Abdomen">Abdomen</option>
+                <option value="Extremidades Superiores">Extremidades Superiores</option>
+                <option value="Extremidades Inferiores">Extremidades Inferiores</option>
+                <option value="Neurológico">Neurológico</option>
+                <option value="Dermatológico">Dermatológico</option>
+                <option value="Oftalmológico">Oftalmológico</option>
+                <option value="Otorrinolaringológico">Otorrinolaringológico</option>
+            </select>
+        </div>
+        
+        <div class="col-12">
+            <label for="examination" class="form-label">Hallazgos del Examen *</label>
+            <textarea name="examination" id="examination" class="form-control" rows="6" 
+                      placeholder="Describa los hallazgos encontrados durante el examen físico regional..." required></textarea>
+        </div>
+    </div>
+    
+    <div class="form-actions mt-4">
+        <button type="submit" class="btn btn-primary">
+            <i class="fas fa-plus me-2"></i>Agregar Examen
+        </button>
+    </div>
+</form>
+
+<div class="exam-list-container mt-4">
+    <h4>Exámenes Registrados</h4>
+    <ul class="exam-list">
+        {% for exam in physicalExams %}
+            <li class="exam-item">
+                <div class="exam-details">
+                    <strong>{{ exam.typeExamination }}</strong>
+                    <p>{{ exam.examination }}</p>
+                </div>
+                <form action="/remove-physical-exam" method="POST" style="display: inline;">
+                    <input type="hidden" name="index" value="{{ loop.index0 }}">
+                    <button type="submit" class="btn btn-sm btn-danger">Eliminar</button>
+                </form>
+            </li>
+        {% endfor %}
+    </ul>
+    
+    <!-- Continue to next step button -->
+    {% if physicalExams %}
+        <div class="continue-step-container mt-4">
+            <form action="/continue-to-organ-systems" method="POST">
+                <button type="submit" class="btn btn-success btn-lg">
+                    <i class="fas fa-arrow-right me-2"></i>Continuar a Revisión de Órganos
+                </button>
+            </form>
+        </div>
+    {% endif %}
+</div>

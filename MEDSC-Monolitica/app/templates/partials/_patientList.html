@@ -1,0 +1,876 @@
+<link rel="stylesheet" href="{{ url_for('static', filename='css/patientForms.css') }}">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+
+<div class="patients-list-container">
+    <!-- Add Patient Button and Search -->
+    <div class="row mb-4 align-items-center">
+        <div class="col-md-6">
+            <p class="text-muted mb-0">Total de pacientes: {{ patients|length if patients else 0 }}</p>
+        </div>
+        <div class="col-md-6 text-end">
+            <form action="{{ url_for('clinic.home', view='addPatient', sec_view='addPatient') }}" method="POST" style="display: inline;">
+                <button type="submit" class="btn btn-primary">
+                    <i class="fas fa-user-plus me-2"></i>Agregar Nuevo Paciente
+                </button>
+            </form>
+        </div>
+    </div>
+
+    <!-- Search Bar -->
+    {% if patients %}
+    <div class="row mb-4">
+        <div class="col-md-8 col-lg-6">
+            <div class="input-group">
+                <span class="input-group-text">
+                    <i class="fas fa-search"></i>
+                </span>
+                <input type="text" id="patientSearch" class="form-control" 
+                       placeholder="Buscar por nombre, apellido o identificación...">
+                <button class="btn btn-outline-secondary" type="button" onclick="clearSearch()">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
+    {% include 'partials/_message.html' %}
+
+    <!-- Patients List -->
+    {% if patients %}
+    <div class="row" id="patientsList">
+        {% for patient in patients %}
+        <div class="col-md-6 col-lg-4 mb-4 patient-card" 
+             data-name="{{ patient.firstName|lower }} {{ patient.lastName1|lower }} {% if patient.lastName2 %}{{ patient.lastName2|lower }}{% endif %}"
+             data-identifier="{{ patient.identifierCode|lower }}">
+            <div class="card h-100 shadow-sm patient-card-clickable" onclick="viewPatientDetails({{ patient.id }})" style="cursor: pointer;">
+                <div class="card-body">
+                    <div class="d-flex align-items-start justify-content-between">
+                        <div class="flex-grow-1">
+                            <h6 class="card-title text-primary mb-2">
+                                <i class="fas fa-user me-1"></i>
+                                {{ patient.firstName }} {{ patient.lastName1 }}
+                                {% if patient.lastName2 %} {{ patient.lastName2 }}{% endif %}
+                            </h6>
+                            
+                            <div class="patient-details">
+                                <p class="card-text mb-1">
+                                    <small class="text-muted">
+                                        <i class="fas fa-id-card me-1"></i>
+                                        {{ patient.identifierType }}: {{ patient.identifierCode }}
+                                    </small>
+                                </p>
+                                
+                                {% if patient.birthdate %}
+                                <p class="card-text mb-1">
+                                    <small class="text-muted">
+                                        <i class="fas fa-birthday-cake me-1"></i>
+                                        {{ patient.birthdate.strftime('%d/%m/%Y') }}
+                                    </small>
+                                </p>
+                                {% endif %}
+                                
+                                {% if patient.phoneNumber %}
+                                <p class="card-text mb-1">
+                                    <small class="text-muted">
+                                        <i class="fas fa-phone me-1"></i>
+                                        {{ patient.phoneNumber }}
+                                    </small>
+                                </p>
+                                {% endif %}
+                                
+                                {% if patient.bloodType %}
+                                <p class="card-text mb-1">
+                                    <small class="text-muted">
+                                        <i class="fas fa-tint me-1"></i>
+                                        Tipo de sangre: {{ patient.bloodType }}
+                                    </small>
+                                </p>
+                                {% endif %}
+                            </div>
+                        </div>
+                        
+                        <div class="patient-actions" onclick="event.stopPropagation();">
+                            <div class="dropdown">
+                                <button class="btn btn-outline-secondary btn-sm dropdown-toggle" 
+                                        type="button" data-bs-toggle="dropdown">
+                                    <i class="fas fa-ellipsis-v"></i>
+                                </button>
+                                <ul class="dropdown-menu">
+                                    <li>
+                                        <a class="dropdown-item" href="#" onclick="editPatient({{ patient.id }})">
+                                            <i class="fas fa-edit me-2"></i>Editar
+                                        </a>
+                                    </li>
+                                    <li><hr class="dropdown-divider"></li>
+                                    <li>
+                                        <form action="{{ url_for('clinic.home', view='addAttention') }}" method="POST" style="display: inline;">
+                                            <input type="hidden" name="preselect_patient" value="{{ patient.id }}">
+                                            <button type="submit" class="dropdown-item text-success">
+                                                <i class="fas fa-stethoscope me-2"></i>Nueva Atención
+                                            </button>
+                                        </form>
+                                    </li>
+                                </ul>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+    
+    <!-- No results message (hidden by default) -->
+    <div id="noResults" class="alert alert-info" style="display: none;">
+        <i class="fas fa-info-circle me-2"></i>
+        No se encontraron pacientes que coincidan con la búsqueda.
+    </div>
+    
+    {% else %}
+    <div class="alert alert-warning text-center">
+        <i class="fas fa-users fa-3x mb-3 text-muted"></i>
+        <h5>No hay pacientes registrados</h5>
+        <p class="mb-3">Comience agregando su primer paciente al sistema.</p>
+        <form action="{{ url_for('clinic.home', view='addPatient', sec_view='addPatient') }}" method="POST">
+            <button type="submit" class="btn btn-primary btn-lg">
+                <i class="fas fa-user-plus me-2"></i>Agregar Primer Paciente
+            </button>
+        </form>
+    </div>
+    {% endif %}
+</div>
+
+<!-- Patient Details Modal -->
+<div class="modal fade" id="patientDetailsModal" tabindex="-1" aria-labelledby="patientDetailsModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-xl">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="patientDetailsModalLabel">
+                    <i class="fas fa-user me-2"></i>Detalles del Paciente
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body" id="patientDetailsContent">
+                <!-- Patient details will be loaded here -->
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cerrar</button>
+                <button type="button" class="btn btn-primary" onclick="editPatientFromModal()">
+                    <i class="fas fa-edit me-1"></i>Editar Paciente
+                </button>
+                <button type="button" class="btn btn-success" onclick="newAttentionFromModal()">
+                    <i class="fas fa-stethoscope me-1"></i>Nueva Atención
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Edit Patient Modal -->
+<div class="modal fade" id="editPatientModal" tabindex="-1" aria-labelledby="editPatientModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="editPatientModalLabel">
+                    <i class="fas fa-edit me-2"></i>Editar Paciente
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body" id="editPatientContent">
+                <!-- Edit form will be loaded here -->
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Include Bootstrap JS for dropdown and modal functionality -->
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+
+<script>
+let currentPatientId = null;
+
+// Search functionality
+document.addEventListener('DOMContentLoaded', function() {
+    const searchInput = document.getElementById('patientSearch');
+    const patientCards = document.querySelectorAll('.patient-card');
+    const noResults = document.getElementById('noResults');
+    
+    if (searchInput) {
+        searchInput.addEventListener('input', function() {
+            const searchTerm = this.value.toLowerCase().trim();
+            let visibleCards = 0;
+            
+            patientCards.forEach(card => {
+                const name = card.getAttribute('data-name');
+                const identifier = card.getAttribute('data-identifier');
+                
+                if (name.includes(searchTerm) || identifier.includes(searchTerm)) {
+                    card.style.display = '';
+                    visibleCards++;
+                } else {
+                    card.style.display = 'none';
+                }
+            });
+            
+            // Show/hide no results message
+            if (visibleCards === 0 && searchTerm.length > 0) {
+                noResults.style.display = 'block';
+            } else {
+                noResults.style.display = 'none';
+            }
+        });
+    }
+});
+
+function clearSearch() {
+    const searchInput = document.getElementById('patientSearch');
+    const patientCards = document.querySelectorAll('.patient-card');
+    const noResults = document.getElementById('noResults');
+    
+    searchInput.value = '';
+    patientCards.forEach(card => {
+        card.style.display = '';
+    });
+    noResults.style.display = 'none';
+}
+
+// Patient actions
+function viewPatientDetails(patientId) {
+    currentPatientId = patientId;
+    
+    // Show loading in modal
+    document.getElementById('patientDetailsContent').innerHTML = `
+        <div class="text-center py-4">
+            <div class="spinner-border text-primary" role="status">
+                <span class="visually-hidden">Cargando...</span>
+            </div>
+            <p class="mt-2">Cargando detalles del paciente...</p>
+        </div>
+    `;
+    
+    // Show modal
+    const modal = new bootstrap.Modal(document.getElementById('patientDetailsModal'));
+    modal.show();
+    
+    // Fetch patient details
+    fetch(`/get-patient-details/${patientId}`)
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                document.getElementById('patientDetailsContent').innerHTML = data.html;
+            } else {
+                document.getElementById('patientDetailsContent').innerHTML = `
+                    <div class="alert alert-danger">
+                        <i class="fas fa-exclamation-triangle me-2"></i>
+                        Error al cargar los detalles del paciente: ${data.error}
+                    </div>
+                `;
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            document.getElementById('patientDetailsContent').innerHTML = `
+                <div class="alert alert-danger">
+                    <i class="fas fa-exclamation-triangle me-2"></i>
+                    Error de conexión al cargar los detalles del paciente.
+                </div>
+            `;
+        });
+}
+
+function editPatient(patientId) {
+    currentPatientId = patientId;
+    
+    // Show loading in edit modal
+    document.getElementById('editPatientContent').innerHTML = `
+        <div class="text-center py-4">
+            <div class="spinner-border text-primary" role="status">
+                <span class="visually-hidden">Cargando...</span>
+            </div>
+            <p class="mt-2">Cargando formulario de edición...</p>
+        </div>
+    `;
+    
+    // Show edit modal
+    const editModal = new bootstrap.Modal(document.getElementById('editPatientModal'));
+    editModal.show();
+    
+    // Fetch patient edit form
+    fetch(`/get-patient-edit-form/${patientId}`)
+        .then(response => response.json())        .then(data => {
+            if (data.success) {
+                document.getElementById('editPatientContent').innerHTML = data.html;
+                // Setup event listeners for the dynamically loaded forms
+                setTimeout(() => {
+                    window.setupModalEventListeners();
+                }, 100);
+            } else {
+                document.getElementById('editPatientContent').innerHTML = `
+                    <div class="alert alert-danger">
+                        <i class="fas fa-exclamation-triangle me-2"></i>
+                        Error al cargar el formulario: ${data.error}
+                    </div>
+                `;
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            document.getElementById('editPatientContent').innerHTML = `
+                <div class="alert alert-danger">
+                    <i class="fas fa-exclamation-triangle me-2"></i>
+                    Error de conexión al cargar el formulario.
+                </div>
+            `;
+        });
+}
+
+function editPatientFromModal() {
+    if (currentPatientId) {
+        // Close details modal first
+        const detailsModal = bootstrap.Modal.getInstance(document.getElementById('patientDetailsModal'));
+        if (detailsModal) {
+            detailsModal.hide();
+        }
+        // Wait a bit for modal to close, then open edit modal
+        setTimeout(() => {
+            editPatient(currentPatientId);
+        }, 300);
+    }
+}
+
+function newAttentionFromModal() {
+    if (currentPatientId) {
+        // Create a form and submit it
+        const form = document.createElement('form');
+        form.method = 'POST';
+        form.action = "{{ url_for('clinic.home', view='addAttention') }}";
+        
+        const input = document.createElement('input');
+        input.type = 'hidden';
+        input.name = 'preselect_patient';
+        input.value = currentPatientId;
+        
+        form.appendChild(input);
+        document.body.appendChild(form);
+        form.submit();
+    }
+}
+
+// Global function to handle successful patient update
+window.handlePatientUpdateSuccess = function() {
+    // Close modal
+    const modal = bootstrap.Modal.getInstance(document.getElementById('editPatientModal'));
+    if (modal) {
+        modal.hide();
+    }
+    
+    // Show success message and redirect to patients list
+    alert('Paciente actualizado exitosamente');
+    window.location.href = "{{ url_for('clinic.home', view='patients') }}";
+};
+
+// Global remove functions for patient edit modal
+window.removeAllergy = function(allergyId) {
+    console.log('removeAllergy function called with ID:', allergyId);
+    
+    if (confirm('¿Está seguro de eliminar esta alergia?')) {
+        console.log('User confirmed deletion, making fetch request...');
+        fetch(`/patient/allergy/${allergyId}`, {
+            method: 'DELETE',
+            headers: {
+                'Accept': 'application/json'
+            }
+        })
+        .then(response => {
+            console.log('Response received:', response);
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
+            return response.json();
+        })
+        .then(data => {
+            console.log('Response data:', data);
+            if (data.success) {
+                alert('Alergia eliminada exitosamente');
+                // Get current patient ID from modal content
+                const patientIdElement = document.querySelector('[data-patient-id]');
+                const patientId = patientIdElement ? patientIdElement.getAttribute('data-patient-id') : null;
+                
+                if (patientId) {
+                    // Reload modal
+                    const editModal = bootstrap.Modal.getInstance(document.getElementById('editPatientModal'));
+                    if (editModal) {
+                        editModal.hide();
+                    }
+                    setTimeout(() => {
+                        editPatient(patientId);
+                    }, 300);
+                }
+            } else {
+                alert('Error: ' + data.error);
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            alert('Error de conexión: ' + error.message);
+        });
+    } else {
+        console.log('User cancelled deletion');
+    }
+};
+
+window.removeContact = function(contactId) {
+    if (confirm('¿Está seguro de eliminar este contacto?')) {
+        fetch(`/patient/contact/${contactId}`, {
+            method: 'DELETE',
+            headers: {
+                'Accept': 'application/json'
+            }
+        })
+        .then(response => {
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
+            return response.json();
+        })
+        .then(data => {
+            if (data.success) {
+                alert('Contacto eliminado exitosamente');
+                // Get current patient ID and reload modal
+                const patientIdElement = document.querySelector('[data-patient-id]');
+                const patientId = patientIdElement ? patientIdElement.getAttribute('data-patient-id') : null;
+                
+                if (patientId) {
+                    const editModal = bootstrap.Modal.getInstance(document.getElementById('editPatientModal'));
+                    if (editModal) {
+                        editModal.hide();
+                    }
+                    setTimeout(() => {
+                        editPatient(patientId);
+                    }, 300);
+                }
+            } else {
+                alert('Error: ' + data.error);
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            alert('Error de conexión: ' + error.message);
+        });
+    }
+};
+
+window.removeCondition = function(conditionId) {
+    if (confirm('¿Está seguro de eliminar esta condición?')) {
+        fetch(`/patient/condition/${conditionId}`, {
+            method: 'DELETE',
+            headers: {
+                'Accept': 'application/json'
+            }
+        })
+        .then(response => {
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
+            return response.json();
+        })
+        .then(data => {
+            if (data.success) {
+                alert('Condición eliminada exitosamente');
+                // Get current patient ID and reload modal
+                const patientIdElement = document.querySelector('[data-patient-id]');
+                const patientId = patientIdElement ? patientIdElement.getAttribute('data-patient-id') : null;
+                
+                if (patientId) {
+                    const editModal = bootstrap.Modal.getInstance(document.getElementById('editPatientModal'));
+                    if (editModal) {
+                        editModal.hide();
+                    }
+                    setTimeout(() => {
+                        editPatient(patientId);
+                    }, 300);
+                }
+            } else {
+                alert('Error: ' + data.error);
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            alert('Error de conexión: ' + error.message);
+        });
+    }
+};
+
+window.removeFamilyBackground = function(backgroundId) {
+    if (confirm('¿Está seguro de eliminar este antecedente?')) {
+        fetch(`/patient/family-background/${backgroundId}`, {
+            method: 'DELETE',
+            headers: {
+                'Accept': 'application/json'
+            }
+        })
+        .then(response => {
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
+            return response.json();
+        })
+        .then(data => {
+            if (data.success) {
+                alert('Antecedente eliminado exitosamente');
+                // Get current patient ID and reload modal
+                const patientIdElement = document.querySelector('[data-patient-id]');
+                const patientId = patientIdElement ? patientIdElement.getAttribute('data-patient-id') : null;
+                
+                if (patientId) {
+                    const editModal = bootstrap.Modal.getInstance(document.getElementById('editPatientModal'));
+                    if (editModal) {
+                        editModal.hide();
+                    }
+                    setTimeout(() => {
+                        editPatient(patientId);
+                    }, 300);
+                }
+            } else {
+                alert('Error: ' + data.error);
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            alert('Error de conexión: ' + error.message);
+        });
+    }
+};
+
+window.deletePatient = function(patientId) {
+    const confirmText = prompt('Para confirmar la eliminación, escriba "ELIMINAR":');
+    if (confirmText === 'ELIMINAR') {
+        fetch(`/patient/${patientId}/delete`, {
+            method: 'POST',
+            headers: {
+                'Accept': 'application/json'
+            }
+        })
+        .then(response => {
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
+            return response.json();
+        })
+        .then(data => {
+            if (data.success) {
+                alert('Paciente eliminado exitosamente');
+                // Close modal and redirect
+                const editModal = bootstrap.Modal.getInstance(document.getElementById('editPatientModal'));
+                if (editModal) {
+                    editModal.hide();
+                }
+                setTimeout(() => {
+                    window.location.href = '/home?view=patients';
+                }, 500);
+            } else {
+                alert('Error: ' + data.error);
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            alert('Error de conexión: ' + error.message);        });
+    }
+};
+
+// Global add functions for modal forms
+window.setupModalEventListeners = function() {
+    // Add allergy form
+    const addAllergyForm = document.getElementById('addAllergyForm');
+    if (addAllergyForm && !addAllergyForm.hasListener) {
+        addAllergyForm.hasListener = true;
+        addAllergyForm.addEventListener('submit', function(e) {
+            e.preventDefault();
+            const allergy = document.getElementById('newAllergy').value.trim();
+            if (!allergy) {
+                alert('Por favor ingrese una alergia');
+                return;
+            }
+            
+            const submitButton = this.querySelector('button[type="submit"]');
+            const originalText = submitButton.innerHTML;
+            submitButton.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
+            submitButton.disabled = true;
+            
+            const patientId = document.querySelector('[data-patient-id]').getAttribute('data-patient-id');
+            
+            fetch(`/patient/${patientId}/add-allergy`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Accept': 'application/json'
+                },
+                body: JSON.stringify({allergy: allergy})
+            })
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+                return response.json();
+            })
+            .then(data => {
+                if (data.success) {
+                    alert('Alergia agregada exitosamente');
+                    document.getElementById('newAllergy').value = '';
+                    setTimeout(() => {
+                        const editModal = bootstrap.Modal.getInstance(document.getElementById('editPatientModal'));
+                        if (editModal) {
+                            editModal.hide();
+                        }
+                        setTimeout(() => {
+                            editPatient(patientId);
+                        }, 300);
+                    }, 300);
+                } else {
+                    alert('Error: ' + data.error);
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                alert('Error de conexión: ' + error.message);
+            })
+            .finally(() => {
+                submitButton.innerHTML = originalText;
+                submitButton.disabled = false;
+            });
+        });
+    }
+    
+    // Add contact form
+    const addContactForm = document.getElementById('addContactForm');
+    if (addContactForm && !addContactForm.hasListener) {
+        addContactForm.hasListener = true;
+        addContactForm.addEventListener('submit', function(e) {
+            e.preventDefault();
+            
+            const firstName = document.getElementById('contactFirstName').value.trim();
+            const lastName = document.getElementById('contactLastName').value.trim();
+            const relationship = document.getElementById('contactRelationship').value.trim();
+            const phoneNumber1 = document.getElementById('contactPhoneNumber1').value.trim();
+            const phoneNumber2 = document.getElementById('contactPhoneNumber2').value.trim();
+            const address = document.getElementById('contactAddress').value.trim();
+            
+            if (!firstName || !lastName || !relationship || !phoneNumber1 || !address) {
+                alert('Por favor complete todos los campos requeridos');
+                return;
+            }
+            
+            const submitButton = this.querySelector('button[type="submit"]');
+            const originalText = submitButton.innerHTML;
+            submitButton.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
+            submitButton.disabled = true;
+            
+            const patientId = document.querySelector('[data-patient-id]').getAttribute('data-patient-id');
+            
+            fetch(`/patient/${patientId}/add-contact`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Accept': 'application/json'
+                },
+                body: JSON.stringify({
+                    firstName: firstName,
+                    lastName: lastName,
+                    relationship: relationship,
+                    phoneNumber1: phoneNumber1,
+                    phoneNumber2: phoneNumber2 || null,
+                    address: address
+                })
+            })
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+                return response.json();
+            })
+            .then(data => {
+                if (data.success) {
+                    alert('Contacto agregado exitosamente');
+                    // Clear form
+                    document.getElementById('contactFirstName').value = '';
+                    document.getElementById('contactLastName').value = '';
+                    document.getElementById('contactRelationship').value = '';
+                    document.getElementById('contactPhoneNumber1').value = '';
+                    document.getElementById('contactPhoneNumber2').value = '';
+                    document.getElementById('contactAddress').value = '';
+                    
+                    setTimeout(() => {
+                        const editModal = bootstrap.Modal.getInstance(document.getElementById('editPatientModal'));
+                        if (editModal) {
+                            editModal.hide();
+                        }
+                        setTimeout(() => {
+                            editPatient(patientId);
+                        }, 300);
+                    }, 300);
+                } else {
+                    alert('Error: ' + data.error);
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                alert('Error de conexión: ' + error.message);
+            })
+            .finally(() => {
+                submitButton.innerHTML = originalText;
+                submitButton.disabled = false;
+            });
+        });
+    }
+    
+    // Add condition form
+    const addConditionForm = document.getElementById('addConditionForm');
+    if (addConditionForm && !addConditionForm.hasListener) {
+        addConditionForm.hasListener = true;
+        addConditionForm.addEventListener('submit', function(e) {
+            e.preventDefault();
+            
+            const diseaseName = document.getElementById('conditionDisease').value.trim();
+            const time = document.getElementById('conditionTime').value;
+            const medicament = document.getElementById('conditionMedicament').value.trim();
+            const treatment = document.getElementById('conditionTreatment').value.trim();
+            
+            if (!diseaseName || !time) {
+                alert('Por favor complete el nombre de la enfermedad y la fecha');
+                return;
+            }
+            
+            const submitButton = this.querySelector('button[type="submit"]');
+            const originalText = submitButton.innerHTML;
+            submitButton.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
+            submitButton.disabled = true;
+            
+            const patientId = document.querySelector('[data-patient-id]').getAttribute('data-patient-id');
+            
+            fetch(`/patient/${patientId}/add-condition`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Accept': 'application/json'
+                },
+                body: JSON.stringify({
+                    diseaseName: diseaseName,
+                    time: time,
+                    medicament: medicament || null,
+                    treatment: treatment || null
+                })
+            })
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+                return response.json();
+            })
+            .then(data => {
+                if (data.success) {
+                    alert('Condición agregada exitosamente');
+                    // Clear form
+                    document.getElementById('conditionDisease').value = '';
+                    document.getElementById('conditionTime').value = '';
+                    document.getElementById('conditionMedicament').value = '';
+                    document.getElementById('conditionTreatment').value = '';
+                    
+                    setTimeout(() => {
+                        const editModal = bootstrap.Modal.getInstance(document.getElementById('editPatientModal'));
+                        if (editModal) {
+                            editModal.hide();
+                        }
+                        setTimeout(() => {
+                            editPatient(patientId);
+                        }, 300);
+                    }, 300);
+                } else {
+                    alert('Error: ' + data.error);
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                alert('Error de conexión: ' + error.message);
+            })
+            .finally(() => {
+                submitButton.innerHTML = originalText;
+                submitButton.disabled = false;
+            });
+        });
+    }
+    
+    // Add family background form
+    const addFamilyForm = document.getElementById('addFamilyForm');
+    if (addFamilyForm && !addFamilyForm.hasListener) {
+        addFamilyForm.hasListener = true;
+        addFamilyForm.addEventListener('submit', function(e) {
+            e.preventDefault();
+            
+            const familyBackground = document.getElementById('familyBackground').value.trim();
+            const time = document.getElementById('familyTime').value;
+            const degreeRelationship = document.getElementById('familyDegree').value;
+            
+            if (!familyBackground || !time || !degreeRelationship) {
+                alert('Por favor complete todos los campos requeridos');
+                return;
+            }
+            
+            const submitButton = this.querySelector('button[type="submit"]');
+            const originalText = submitButton.innerHTML;
+            submitButton.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
+            submitButton.disabled = true;
+            
+            const patientId = document.querySelector('[data-patient-id]').getAttribute('data-patient-id');
+            
+            fetch(`/patient/${patientId}/add-family-background`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Accept': 'application/json'
+                },
+                body: JSON.stringify({
+                    familyBackground: familyBackground,
+                    time: time,
+                    degreeRelationship: degreeRelationship
+                })
+            })
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+                return response.json();
+            })
+            .then(data => {
+                if (data.success) {
+                    alert('Antecedente familiar agregado exitosamente');
+                    // Clear form
+                    document.getElementById('familyBackground').value = '';
+                    document.getElementById('familyTime').value = '';
+                    document.getElementById('familyDegree').value = '';
+                    
+                    setTimeout(() => {
+                        const editModal = bootstrap.Modal.getInstance(document.getElementById('editPatientModal'));
+                        if (editModal) {
+                            editModal.hide();
+                        }
+                        setTimeout(() => {
+                            editPatient(patientId);
+                        }, 300);
+                    }, 300);
+                } else {
+                    alert('Error: ' + data.error);
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                alert('Error de conexión: ' + error.message);
+            })
+            .finally(() => {
+                submitButton.innerHTML = originalText;
+                submitButton.disabled = false;
+            });
+        });
+    }
+};
+</script>

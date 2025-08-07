@@ -1,0 +1,41 @@
+<link rel="stylesheet" href="{{ url_for('static', filename='css/preExistingConditionForm.css') }}">
+
+<h2 class="condition-title">Agregar Condiciones Preexistentes</h2>
+
+{% include 'partials/_message.html' %}
+
+<form action="/add-conditions" class="condition-form" method="POST">
+    <input type="text" name="diseaseName" placeholder="Nombre de la enfermedad" required>
+    <input type="date" name="time" required>
+    <input type="text" name="medicament" placeholder="Medicamento (opcional)">
+    <input type="text" name="treatment" placeholder="Tratamiento (opcional)">
+
+    <button type="submit" class="add-condition-btn">Agregar Condición</button>
+</form>
+
+<div class="condition-list-container">
+    <ul class="condition-list">
+        {% for condition in preExistingConditions %}
+            <li>
+                {% if condition is mapping %}
+                    <div class="condition-details">
+                        <strong>{{ condition.diseaseName }}</strong>
+                        <small>Fecha: {{ condition.time }}</small>
+                        {% if condition.medicament %}
+                            <small>Medicamento: {{ condition.medicament }}</small>
+                        {% endif %}
+                        {% if condition.treatment %}
+                            <small>Tratamiento: {{ condition.treatment }}</small>
+                        {% endif %}
+                    </div>
+                {% else %}
+                    <span>{{ condition }}</span>
+                {% endif %}
+                <form action="/remove-condition" method="POST" style="display: inline;">
+                    <input type="hidden" name="index" value="{{ loop.index0 }}">
+                    <button type="submit" class="btn-remove">Eliminar</button>
+                </form>
+            </li>
+        {% endfor %}
+    </ul>
+</div>

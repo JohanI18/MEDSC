@@ -314,9 +314,6 @@ coverage-reports/
 # User-specific files (you may want to keep some of these)
 cookies.txt
 
-# Nested git repositories
-MEDSC-Monolitica/
-
 # Build and deployment artifacts
 *.tar.gz
 *.zip

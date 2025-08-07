@@ -1,0 +1,135 @@
+<link rel="stylesheet" href="{{ url_for('static', filename='css/tabs.css') }}">
+<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" integrity="sha512-KCEXAMPLEqU..." crossorigin="anonymous" referrerpolicy="no-referrer" />
+
+<div class="card p-4 shadow-sm">
+
+    {% if not selected_patient %}
+        <!-- Patient Selection Step -->
+        {% include 'partials/_patientSelectionForm.html' %}
+    {% else %}
+        <!-- Show selected patient info at top -->
+        <div class="selected-patient-banner mb-4">
+            <div class="alert alert-success d-flex align-items-center">
+                <i class="fas fa-user-check me-2"></i>
+                <div class="flex-grow-1">
+                    <strong>Atención para:</strong> {{ selected_patient.firstName }} {{ selected_patient.lastName1 }}
+                    ({{ selected_patient.identifierType }}: {{ selected_patient.identifierCode }})
+                </div>
+                <form action="/change-selected-patient" method="POST" style="display: inline;">
+                    <button type="submit" class="btn btn-outline-secondary btn-sm">
+                        <i class="fas fa-exchange-alt me-1"></i>Cambiar Paciente
+                    </button>
+                </form>
+            </div>
+        </div>
+
+        <!-- Attention Form Tabs -->
+        <ul class="nav nav-tabs flex-wrap justify-content-center" id="attentionTabs" role="tablist">
+        <li class="nav-item" role="presentation">
+            <button class="nav-link {{ 'active' if current_step == 'vitales' or not current_step else '' }}" 
+                    data-bs-toggle="tab" data-bs-target="#vitales" type="button" role="tab">
+                <i class="fas fa-heartbeat me-1"></i> Signos Vitales
+                {% if vital_signs_data %}
+                    <i class="fas fa-check-circle ms-1 text-success"></i>
+                {% endif %}
+            </button>
+        </li>
+        <li class="nav-item" role="presentation">
+            <button class="nav-link {{ 'active' if current_step == 'evaluacion' else '' }}" 
+                    data-bs-toggle="tab" data-bs-target="#evaluacion" type="button" role="tab">
+                <i class="fas fa-stethoscope me-1"></i> Evaluación Inicial
+                {% if evaluation_data.get('reasonConsultation') and evaluation_data.get('currentIllness') %}
+                    <i class="fas fa-check-circle ms-1 text-success"></i>
+                {% endif %}
+            </button>
+        </li>
+        <li class="nav-item" role="presentation">
+            <button class="nav-link {{ 'active' if current_step == 'examen' else '' }}" 
+                    data-bs-toggle="tab" data-bs-target="#examen" type="button" role="tab">
+                <i class="fas fa-user-md me-1"></i> Examen Físico
+                {% if physicalExams %}
+                    <i class="fas fa-check-circle ms-1 text-success"></i>
+                {% endif %}
+            </button>
+        </li>
+        <li class="nav-item" role="presentation">
+            <button class="nav-link {{ 'active' if current_step == 'revision' else '' }}" 
+                    data-bs-toggle="tab" data-bs-target="#revision" type="button" role="tab">
+                <i class="fas fa-x-ray me-1"></i> Revisión Órganos
+                {% if organSystemReviews %}
+                    <i class="fas fa-check-circle ms-1 text-success"></i>
+                {% endif %}
+            </button>
+        </li>
+        <li class="nav-item" role="presentation">
+            <button class="nav-link {{ 'active' if current_step == 'diagnostico' else '' }}" 
+                    data-bs-toggle="tab" data-bs-target="#diagnostico" type="button" role="tab">
+                <i class="fas fa-diagnoses me-1"></i> Diagnóstico
+                {% if diagnostics %}
+                    <i class="fas fa-check-circle ms-1 text-success"></i>
+                {% endif %}
+            </button>
+        </li>
+        <li class="nav-item" role="presentation">
+            <button class="nav-link {{ 'active' if current_step == 'tratamiento' else '' }}" 
+                    data-bs-toggle="tab" data-bs-target="#tratamiento" type="button" role="tab">
+                <i class="fas fa-pills me-1"></i> Tratamiento
+                {% if treatments %}
+                    <i class="fas fa-check-circle ms-1 text-success"></i>
+                {% endif %}
+            </button>
+        </li>
+        <li class="nav-item" role="presentation">
+            <button class="nav-link {{ 'active' if current_step == 'examenes' else '' }}" 
+                    data-bs-toggle="tab" data-bs-target="#examenes" type="button" role="tab">
+                <i class="fas fa-flask me-1"></i> Exámenes Extras
+                {% if histopathologies or imagings or laboratories %}
+                    <i class="fas fa-check-circle ms-1 text-success"></i>
+                {% endif %}
+            </button>
+        </li>
+        <li class="nav-item" role="presentation">
+            <button class="nav-link {{ 'active' if current_step == 'evolucion' else '' }}" 
+                    data-bs-toggle="tab" data-bs-target="#evolucion" type="button" role="tab">
+                <i class="fas fa-chart-line me-1"></i> Evolución
+                {% if evaluation_data.get('evolution') %}
+                    <i class="fas fa-check-circle ms-1 text-success"></i>
+                {% endif %}
+            </button>
+        </li>
+    </ul>
+
+    <!-- Tab content -->
+    <div class="tab-content mt-3" style="min-height: 400px;">
+        <div class="tab-pane fade {{ 'show active' if current_step == 'vitales' or not current_step else '' }}" id="vitales" role="tabpanel">
+            {% include 'partials/_vitalSignsForm.html' %}
+        </div>
+        <div class="tab-pane fade {{ 'show active' if current_step == 'evaluacion' else '' }}" id="evaluacion" role="tabpanel">
+            {% include 'partials/_initialEvaluationForm.html' %}
+        </div>
+        <div class="tab-pane fade {{ 'show active' if current_step == 'examen' else '' }}" id="examen" role="tabpanel">
+            {% include 'partials/_physicalExamForm.html' %}
+        </div>
+        <div class="tab-pane fade {{ 'show active' if current_step == 'revision' else '' }}" id="revision" role="tabpanel">
+            {% include 'partials/_organSystemsForm.html' %}
+        </div>
+        <div class="tab-pane fade {{ 'show active' if current_step == 'diagnostico' else '' }}" id="diagnostico" role="tabpanel">
+            {% include 'partials/_diagnosticForm.html' %}
+        </div>
+        <div class="tab-pane fade {{ 'show active' if current_step == 'tratamiento' else '' }}" id="tratamiento" role="tabpanel">
+            {% include 'partials/_treatmentForm.html' %}
+        </div>
+        <div class="tab-pane fade {{ 'show active' if current_step == 'examenes' else '' }}" id="examenes" role="tabpanel">
+            {% include 'partials/_extraExamsForm.html' %}
+        </div>
+        <div class="tab-pane fade {{ 'show active' if current_step == 'evolucion' else '' }}" id="evolucion" role="tabpanel">
+            {% include 'partials/_evolutionForm.html' %}
+        </div>
+    </div>
+    {% endif %}
+
+</div>
+
+<!-- Bootstrap JS -->
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>

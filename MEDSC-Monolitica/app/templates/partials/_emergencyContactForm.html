@@ -1,0 +1,48 @@
+<link rel="stylesheet" href="{{ url_for('static', filename='css/emergencyContactForm.css') }}">
+
+<h2 class="contact-title">Agregar Contacto de Emergencia</h2>
+
+{% include 'partials/_message.html' %}
+
+<form action="/add-contact" class="contact-form" method="POST">
+    <div class="form-row">
+        <input type="text" name="firstName" placeholder="Nombre" required>
+        <input type="text" name="lastName" placeholder="Apellido" required>
+    </div>
+    
+    <input type="text" name="address" placeholder="Dirección" required>
+    <input type="text" name="relationship" placeholder="Relación (ej: Madre, Padre, Esposo/a)" required>
+    
+    <div class="form-row">
+        <input type="tel" name="phoneNumber1" placeholder="Teléfono Principal" required>
+        <input type="tel" name="phoneNumber2" placeholder="Teléfono Secundario (opcional)">
+    </div>
+
+    <button type="submit" class="add-contact-btn">Agregar Contacto</button>
+</form>
+
+<div class="contact-list-container">
+    <ul class="contact-list">
+        {% if emergencyContacts %}
+            {% for contact in emergencyContacts %}
+                <li class="contact-item">
+                    <div class="contact-details">
+                        <strong>{{ contact.firstName }} {{ contact.lastName }}</strong>
+                        <p><strong>Relación:</strong> {{ contact.relationship }}</p>
+                        <p><strong>Dirección:</strong> {{ contact.address }}</p>
+                        <p><strong>Teléfono:</strong> {{ contact.phoneNumber1 }}
+                        {% if contact.phoneNumber2 %} | {{ contact.phoneNumber2 }}{% endif %}</p>
+                    </div>
+                    <form action="/remove-contact" method="POST" style="display: inline;">
+                        <input type="hidden" name="index" value="{{ loop.index0 }}">
+                        <button type="submit" class="btn-remove" onclick="return confirm('¿Está seguro de eliminar este contacto temporalmente?')">
+                            <i class="fas fa-trash"></i> Eliminar
+                        </button>
+                    </form>
+                </li>
+            {% endfor %}
+        {% else %}
+            <li class="no-contacts">No hay contactos de emergencia agregados</li>
+        {% endif %}
+    </ul>
+</div>

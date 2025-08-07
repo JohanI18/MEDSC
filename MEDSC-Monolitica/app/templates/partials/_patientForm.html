@@ -1,0 +1,124 @@
+<link rel="stylesheet" href="{{ url_for('static', filename='css/patientForms.css') }}">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+
+
+
+  {% include 'partials/_message.html' %}
+
+  <form action="/add-patients" method="POST">
+    <!-- Include all the existing form fields as hidden inputs to preserve data -->
+    {% for field_name in ['identifierType', 'identifierCode', 'firstName', 'middleName', 'lastName1', 'lastName2', 'nationality', 'address', 'phoneNumber', 'birthdate', 'gender', 'sex', 'civilStatus', 'job', 'bloodType', 'email'] %}
+      <input type="hidden" name="patient_{{ field_name }}" id="hidden_{{ field_name }}">
+    {% endfor %}
+
+    <div class="row g-4">
+      <div class="col-md-6">
+        <label for="identifierType" class="form-label">Tipo de ID:</label>
+        <select name="identifierType" id="identifierType" class="form-select" required>
+          <option value="">Seleccione Tipo de ID</option>
+          <option value="Cedula">Cédula:</option>
+          <option value="Pasaporte">Pasaporte:</option>
+          <option value="GeneratedIdentifier">Generado:</option>
+        </select>
+      </div>
+
+      <div class="col-md-6">
+        <label for="identifierCode" class="form-label">Código de ID:</label>
+        <input type="text" name="identifierCode" class="form-control" required>
+      </div>
+
+      <div class="col-md-6">
+        <label for="firstName" class="form-label">Nombre:</label>
+        <input type="text" name="firstName" class="form-control" required>
+      </div>
+
+      <div class="col-md-6">
+        <label for="middleName" class="form-label">Segundo Nombre:</label>
+        <input type="text" name="middleName" class="form-control">
+      </div>
+
+      <div class="col-md-6">
+        <label for="lastName1" class="form-label">Primer Apellido:</label>
+        <input type="text" name="lastName1" class="form-control" required>
+      </div>
+
+      <div class="col-md-6">
+        <label for="lastName2" class="form-label">Segundo Apellido:</label>
+        <input type="text" name="lastName2" class="form-control">
+      </div>
+
+      <div class="col-md-6">
+        <label for="nationality" class="form-label">Nacionalidad:</label>
+        <input type="text" name="nationality" class="form-control">
+      </div>
+
+      <div class="col-md-6">
+        <label for="address" class="form-label">Dirección:</label>
+        <input type="text" name="address" class="form-control" required>
+      </div>
+
+      <div class="col-md-6">
+        <label for="phoneNumber" class="form-label">Teléfono:</label>
+        <input type="text" name="phoneNumber" class="form-control">
+      </div>
+
+      <div class="col-md-6">
+        <label for="birthdate" class="form-label">Fecha de nacimiento:</label>
+        <input type="date" name="birthdate" class="form-control" required>
+      </div>
+
+      <div class="col-md-6">
+        <label for="gender" class="form-label">Género:</label>
+        <input type="text" name="gender" class="form-control">
+      </div>
+
+      <div class="col-md-6">
+        <label for="sex" class="form-label">Sexo:</label>
+        <input type="text" name="sex" class="form-control">
+      </div>
+
+      <div class="col-md-6">
+        <label for="civilStatus" class="form-label">Estado Civil:</label>
+        <select name="civilStatus" class="form-select">
+          <option value="">Seleccione</option>
+          <option value="Soltero/a">Soltero/a</option>
+          <option value="UniónDeHecho">Unión de Hecho</option>
+          <option value="Casado/a">Casado/a</option>
+          <option value="Divorciado/a">Divorciado/a</option>
+          <option value="Viudo/a">Viudo/a</option>
+        </select>
+      </div>
+
+      <div class="col-md-6">
+        <label for="job" class="form-label">Ocupación:</label>
+        <input type="text" name="job" class="form-control">
+      </div>
+
+      <div class="col-md-6">
+        <label for="bloodType" class="form-label">Tipo de Sangre:</label>
+        <select name="bloodType" class="form-select">
+          <option value="">Seleccione</option>
+          <option value="A+">A+</option>
+          <option value="A-">A-</option>
+          <option value="B+">B+</option>
+          <option value="B-">B-</option>
+          <option value="AB+">AB+</option>
+          <option value="AB-">AB-</option>
+          <option value="O+">O+</option>
+          <option value="O-">O-</option>
+        </select>
+      </div>
+
+      <div class="col-md-6">
+        <label for="email" class="form-label">Correo Electrónico:</label>
+        <input type="email" name="email" class="form-control">
+      </div>
+    </div>
+
+
+      <div class="d-flex justify-content-center mt-5">
+        <button type="submit" class="btn btn-primary px-4 py-2">
+          <i class="fas fa-arrow-right me-2"></i>Continuar a Información Adicional
+        </button>
+      </div>
+  </form>

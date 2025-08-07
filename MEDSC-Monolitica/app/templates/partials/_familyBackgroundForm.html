@@ -1,0 +1,42 @@
+<link rel="stylesheet" href="{{ url_for('static', filename='css/familyBackgroundForm.css') }}">
+
+<h2 class="background-title">Agregar Antecedentes Familiares</h2>
+
+    {% include 'partials/_message.html' %}
+
+    <form action="/add-familyBack" class="background-form" method="POST">
+        <input type="text" name="familyBackground" placeholder="Antecedentes Familiares" required>
+
+        <div class="input-button-continer">
+            <input type="date" name="time" required>
+            
+            <select name="degreeRelationship" required>
+                <option value="">Grado de Parentesco</option>
+                <option value="1">1er Grado</option>
+                <option value="2">2do Grado</option>
+                <option value="3">3er Grado</option>
+                <option value="4">4to Grado</option>
+            </select>
+        </div>
+
+        <button type="submit">Agregar Antecedente</button>
+        
+    </form>
+
+    <div class="background-list-container">
+        <ul class="background-list">
+            {% for background in familyBack %}
+                <li>
+                    {% if background is mapping %}
+                        <span><strong>{{ background.background }}</strong> - {{ background.time }} (Grado: {{ background.degree }})</span>
+                    {% else %}
+                        <span>{{ background }}</span>
+                    {% endif %}
+                    <form action="/remove-familyBack" method="POST" style="display: inline;">
+                        <input type="hidden" name="index" value="{{ loop.index0 }}">
+                        <button type="submit" class="btn-remove">Eliminar</button>
+                    </form>
+                </li>
+            {% endfor %}
+        </ul>
+    </div>

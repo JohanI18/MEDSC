@@ -1,0 +1,50 @@
+<div class="container mt-4">
+    <div class="card shadow p-4">
+        <h3 class="mb-3 text-primary">
+            <i class="fas fa-notes-medical me-2"></i>Detalle de Atención Médica
+        </h3>
+        {% if attention and patient and doctor %}
+        <div class="mb-4">
+            <h5 class="mb-1">Paciente:</h5>
+            <p class="mb-0"><strong>{{ patient.firstName }} {{ patient.lastName1 }}{% if patient.lastName2 %} {{ patient.lastName2 }}{% endif %}</strong></p>
+            <p class="mb-0">Identificación: {{ patient.identifierType }}: {{ patient.identifierCode }}</p>
+        </div>
+        <div class="mb-4">
+            <h5 class="mb-1">Médico Responsable:</h5>
+            <p class="mb-0"><strong>Dr. {{ doctor.firstName }} {{ doctor.lastName1 }}</strong></p>
+            <p class="mb-0">Especialidad: {{ doctor.speciality or '-' }}</p>
+        </div>
+        <div class="mb-4">
+            <h5 class="mb-1">Datos de la Atención</h5>
+            <ul class="list-group">
+                <li class="list-group-item"><strong>Fecha:</strong> {{ attention.date.strftime('%d/%m/%Y %H:%M') }}</li>
+                <li class="list-group-item"><strong>Motivo de Consulta:</strong> {{ attention.reasonConsultation }}</li>
+                <li class="list-group-item"><strong>Enfermedad Actual:</strong> {{ attention.currentIllness }}</li>
+                <li class="list-group-item"><strong>Evolución:</strong> {{ attention.evolution }}</li>
+            </ul>
+        </div>
+        <div class="mb-4">
+            <h5 class="mb-1">Signos Vitales</h5>
+            <ul class="list-group">
+                <li class="list-group-item"><strong>Peso:</strong> {{ attention.weight or '-' }} kg</li>
+                <li class="list-group-item"><strong>Altura:</strong> {{ attention.height or '-' }} cm</li>
+                <li class="list-group-item"><strong>Temperatura:</strong> {{ attention.temperature or '-' }} °C</li>
+                <li class="list-group-item"><strong>Presión Arterial:</strong> {{ attention.bloodPressure or '-' }}</li>
+                <li class="list-group-item"><strong>Frecuencia Cardíaca:</strong> {{ attention.heartRate or '-' }} bpm</li>
+                <li class="list-group-item"><strong>Saturación de Oxígeno:</strong> {{ attention.oxygenSaturation or '-' }} %</li>
+                <li class="list-group-item"><strong>Frecuencia Respiratoria:</strong> {{ attention.breathingFrequency or '-' }} rpm</li>
+                <li class="list-group-item"><strong>Glucosa:</strong> {{ attention.glucose or '-' }} mg/dL</li>
+                <li class="list-group-item"><strong>Hemoglobina:</strong> {{ attention.hemoglobin or '-' }} g/dL</li>
+            </ul>
+        </div>
+        {% else %}
+        <div class="alert alert-danger">
+            <i class="fas fa-exclamation-triangle me-2"></i>
+            No se encontró la información de la atención solicitada.
+        </div>
+        {% endif %}
+        <a href="{{ url_for('clinic.home', view='attentionHistory') }}" class="btn btn-secondary mt-3">
+            <i class="fas fa-arrow-left me-1"></i>Ocultar
+        </a>
+    </div>
+</div>

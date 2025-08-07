@@ -1,0 +1,30 @@
+<link rel="stylesheet" href="{{ url_for('static', filename='css/attentionForms.css') }}">
+
+<h3 class="form-section-title">Evolución del Paciente</h3>
+
+{% include 'partials/_message.html' %}
+
+<form action="/add-evolution" method="POST" class="evolution-form">
+    <div class="row g-3">
+        <div class="col-12">
+            <label for="evolution" class="form-label">Evolución *</label>
+            <textarea name="evolution" id="evolution" class="form-control" rows="6" 
+                      placeholder="Describa la evolución del paciente durante la atención..." required></textarea>
+        </div>
+    </div>
+    
+    <div class="form-actions mt-4">
+        <button type="submit" class="btn btn-primary">
+            <i class="fas fa-save me-2"></i>Guardar Evolución
+        </button>
+    </div>
+</form>
+
+<!-- Botón final para completar atención -->
+<div class="final-actions mt-5">
+    <form action="/complete-attention" method="POST">
+        <button type="submit" class="btn btn-success btn-lg">
+            <i class="fas fa-check-circle me-2"></i>Finalizar y Guardar Atención
+        </button>
+    </form>
+</div>

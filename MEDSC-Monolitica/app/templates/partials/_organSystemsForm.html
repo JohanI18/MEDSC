@@ -1,0 +1,67 @@
+<link rel="stylesheet" href="{{ url_for('static', filename='css/attentionForms.css') }}">
+
+<h3 class="form-section-title">Revisión de Órganos y Sistemas</h3>
+
+{% include 'partials/_message.html' %}
+
+<form action="/add-organ-system-review" method="POST" class="organ-systems-form">
+    <div class="row g-3">
+        <div class="col-md-6">
+            <label for="typeReview" class="form-label">Tipo de Revisión *</label>
+            <select name="typeReview" id="typeReview" class="form-select" required>
+                <option value="">Seleccione sistema a revisar</option>
+                <option value="Sistema Cardiovascular">Sistema Cardiovascular</option>
+                <option value="Sistema Respiratorio">Sistema Respiratorio</option>
+                <option value="Sistema Gastrointestinal">Sistema Gastrointestinal</option>
+                <option value="Sistema Genitourinario">Sistema Genitourinario</option>
+                <option value="Sistema Nervioso">Sistema Nervioso</option>
+                <option value="Sistema Endocrino">Sistema Endocrino</option>
+                <option value="Sistema Musculoesquelético">Sistema Musculoesquelético</option>
+                <option value="Sistema Hematológico">Sistema Hematológico</option>
+                <option value="Sistema Inmunológico">Sistema Inmunológico</option>
+                <option value="Sistema Tegumentario">Sistema Tegumentario</option>
+            </select>
+        </div>
+        
+        <div class="col-12">
+            <label for="review" class="form-label">Hallazgos de la Revisión *</label>
+            <textarea name="review" id="review" class="form-control" rows="6" 
+                      placeholder="Describa los hallazgos de la revisión del sistema seleccionado..." required></textarea>
+        </div>
+    </div>
+    
+    <div class="form-actions mt-4">
+        <button type="submit" class="btn btn-primary">
+            <i class="fas fa-plus me-2"></i>Agregar Revisión
+        </button>
+    </div>
+</form>
+
+<div class="review-list-container mt-4">
+    <h4>Revisiones Registradas</h4>
+    <ul class="review-list">
+        {% for review in organSystemReviews %}
+            <li class="review-item">
+                <div class="review-details">
+                    <strong>{{ review.typeReview }}</strong>
+                    <p>{{ review.review }}</p>
+                </div>
+                <form action="/remove-organ-system-review" method="POST" style="display: inline;">
+                    <input type="hidden" name="index" value="{{ loop.index0 }}">
+                    <button type="submit" class="btn btn-sm btn-danger">Eliminar</button>
+                </form>
+            </li>
+        {% endfor %}
+    </ul>
+    
+    <!-- Continue to next step button -->
+    {% if organSystemReviews %}
+        <div class="continue-step-container mt-4">
+            <form action="/continue-to-diagnostics" method="POST">
+                <button type="submit" class="btn btn-success btn-lg">
+                    <i class="fas fa-arrow-right me-2"></i>Continuar a Diagnósticos
+                </button>
+            </form>
+        </div>
+    {% endif %}
+</div>
