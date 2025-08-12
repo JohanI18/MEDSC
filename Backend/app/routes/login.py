@@ -520,8 +520,19 @@ def auth_callback():
     error = request.args.get('error')
     error_description = request.args.get('error_description')
 
-    # Log the callback for debugging
-    current_app.logger.info(f"Auth callback - type: {type_param}, has_access_token: {bool(access_token)}, error: {error}")
+    # Log the callback for debugging with sanitized user-controlled data
+    import base64
+    def sanitize_log_value(val):
+        if val is None:
+            return None
+        if isinstance(val, str) and val.isalnum():
+            return val
+        return base64.b64encode(str(val).encode('utf-8')).decode('utf-8')
+
+    safe_type_param = sanitize_log_value(type_param)
+    safe_error = sanitize_log_value(error)
+    current_app.logger.info(
+        f"Auth callback - type: {safe_type_param}, has_access_token: {bool(access_token)}, error: {safe_error}")
 
     if error:
         flash(f'Error de autenticación: {error_description or error}', 'danger')
