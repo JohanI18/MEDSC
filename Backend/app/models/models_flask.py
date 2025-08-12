@@ -4,25 +4,6 @@ from sqlalchemy.sql import func
 
 from sqlalchemy import DateTime
 
-# --- TABLAS PRINCIPALES ---
-
-class ActivityLogs(db.Model):
-    __tablename__ = "activity_logs"
-    __table_args__ = {
-        "mysql_charset": "utf8mb4",
-        "mysql_collate": "utf8mb4_0900_ai_ci"
-    }
-
-    id = db.Column(db.Integer, primary_key=True, autoincrement=True)
-    user_supabase_id = db.Column(db.String(255), nullable=False, index=True)
-    user_type = db.Column(db.String(50), nullable=False)
-    user_email = db.Column(db.String(255), nullable=False)
-    action = db.Column(db.String(255), nullable=False)
-    description = db.Column(db.Text, nullable=True)
-    ip_address = db.Column(db.String(50), nullable=True)
-    user_agent = db.Column(db.Text, nullable=True)
-    timestamp = db.Column(db.DateTime, server_default=func.now(), nullable=False)
-    created_by = db.Column(db.String(255), nullable=False)
 
 
 class Patient(db.Model):

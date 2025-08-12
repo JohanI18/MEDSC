@@ -24,8 +24,10 @@ database = os.getenv("MYSQL_DATABASE")
 DATABASE_CONNECTION_URI = f"mysql+mysqlconnector://{user}:{password}@{host}:{port}/{database}"
 
 # Supabase Configuration
-SUPABASE_URL = os.getenv("SUPABASE_URL", "https://vdhbgtgbxszzheftvaga.supabase.co")
-SUPABASE_KEY = os.getenv("SUPABASE_KEY", "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZkaGJndGdieHN6emhlZnR2YWdhIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTQ0MDQ0NDUsImV4cCI6MjA2OTk4MDQ0NX0.LdGqI_8JONJAex3Qbn407ueNE8hRzApGkQy5JY7x3eg")
+SUPABASE_URL = os.getenv("SUPABASE_URL")
+SUPABASE_KEY = os.getenv("SUPABASE_KEY")
+if not SUPABASE_URL or not SUPABASE_KEY:
+    raise RuntimeError("SUPABASE_URL y SUPABASE_KEY deben estar definidos en las variables de entorno (.env)")
 
 # En Producción, asegúrate de generar una clave secreta segura
 # SECRET_KEY = secrets.token_urlsafe(32)

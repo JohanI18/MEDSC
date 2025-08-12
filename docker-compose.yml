@@ -23,7 +23,7 @@ services:
   # Backend Flask
   backend:
     build: 
-      context: ./MEDSC-Monolitica/app
+      context: ./Backend/app
       dockerfile: Dockerfile
     container_name: medsc_backend
     restart: always
@@ -38,7 +38,7 @@ services:
     networks:
       - medsc-network
     volumes:
-      - ./MEDSC-Monolitica/app:/app
+      - ./Backend/app:/app
     command: python index.py
 
   # Frontend Next.js
