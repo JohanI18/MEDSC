@@ -1,6 +1,6 @@
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { 
   User, 
   Users, 
@@ -9,8 +9,10 @@ import {
   Home,
   Menu,
   X,
-  LogOut
+  LogOut,
+  Shield
 } from 'lucide-react';
+import { adminService } from '@/services/admin';
 
 interface NavbarProps {
   currentPath?: string;
@@ -18,7 +20,23 @@ interface NavbarProps {
 
 export default function Navbar({ currentPath }: NavbarProps) {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const [isAdmin, setIsAdmin] = useState(false);
   const router = useRouter();
+
+  useEffect(() => {
+    checkAdminStatus();
+  }, []);
+
+  const checkAdminStatus = async () => {
+    try {
+      const result = await adminService.getCurrentUser();
+      if (result.success && result.data) {
+        setIsAdmin(result.data.isAdmin);
+      }
+    } catch (err) {
+      // User not authenticated or error
+    }
+  };
 
   const navigation = [
     { name: 'Dashboard', href: '/dashboard', icon: Home },
@@ -26,6 +44,11 @@ export default function Navbar({ currentPath }: NavbarProps) {
     { name: 'Atención', href: '/attention', icon: Stethoscope },
     { name: 'Chat', href: '/chat', icon: MessageSquare },
   ];
+
+  // Add admin link if user is admin
+  const fullNavigation = isAdmin 
+    ? [...navigation, { name: 'Admin', href: '/admin', icon: Shield }]
+    : navigation;
 
   const handleLogout = () => {
     // Handle logout logic
@@ -43,7 +66,7 @@ export default function Navbar({ currentPath }: NavbarProps) {
               </Link>
             </div>
             <div className="hidden sm:ml-6 sm:flex sm:space-x-8">
-              {navigation.map((item) => {
+              {fullNavigation.map((item) => {
                 const Icon = item.icon;
                 const isActive = currentPath === item.href;
                 return (
@@ -101,7 +124,7 @@ export default function Navbar({ currentPath }: NavbarProps) {
       {isMenuOpen && (
         <div className="sm:hidden">
           <div className="pt-2 pb-3 space-y-1">
-            {navigation.map((item) => {
+            {fullNavigation.map((item) => {
               const Icon = item.icon;
               const isActive = currentPath === item.href;
               return (

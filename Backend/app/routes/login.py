@@ -598,126 +598,13 @@ def reset_password_with_session():
 
 @login.route('/api/register-doctor', methods=['POST'])
 def register_doctor():
-    """Registra un nuevo doctor creando usuario en Supabase y guardando datos en MySQL"""
-    try:
-        from utils.supabase_client import supabase_auth
-        from models.models_flask import Doctor
-        from utils.db import db
-        
-        data = request.get_json()
-        
-        # Validar datos requeridos
-        required_fields = [
-            'email', 'password', 'firstName', 'lastName1', 'identifierCode',
-            'phoneNumber', 'address', 'gender', 'sex', 'speciality'
-        ]
-        
-        missing_fields = []
-        for field in required_fields:
-            if not data.get(field):
-                missing_fields.append(field)
-        
-        if missing_fields:
-            return jsonify({
-                'success': False,
-                'error': f'Campos requeridos faltantes: {", ".join(missing_fields)}'
-            }), 400
-        
-        # Validar email
-        import re
-        email_regex = r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$'
-        if not re.match(email_regex, data['email']):
-            return jsonify({
-                'success': False,
-                'error': 'Email inválido'
-            }), 400
-        
-        # Validar contraseña
-        if len(data['password']) < 6:
-            return jsonify({
-                'success': False,
-                'error': 'La contraseña debe tener al menos 6 caracteres'
-            }), 400
-        
-        # Verificar si ya existe el email o identifierCode en MySQL
-        existing_email = Doctor.query.filter_by(email=data['email'], is_deleted=False).first()
-        if existing_email:
-            return jsonify({
-                'success': False,
-                'error': 'El email ya está registrado'
-            }), 400
-            
-        existing_identifier = Doctor.query.filter_by(identifierCode=data['identifierCode'], is_deleted=False).first()
-        if existing_identifier:
-            return jsonify({
-                'success': False,
-                'error': 'El número de identificación ya está registrado'
-            }), 400
-        
-        # Crear usuario en Supabase
-        full_name = f"{data['firstName']} {data.get('middleName', '')} {data['lastName1']} {data.get('lastName2', '')}".strip()
-        metadata = {
-            'full_name': full_name,
-            'first_name': data['firstName'],
-            'last_name': data['lastName1'],
-            'speciality': data['speciality']
-        }
-        
-        supabase_result = supabase_auth.sign_up(data['email'], data['password'], metadata)
-        
-        if not supabase_result['success']:
-            return jsonify({
-                'success': False,
-                'error': f'Error en Supabase: {supabase_result["message"]}'
-            }), 400
-        
-        # Obtener el UID de Supabase
-        supabase_user = supabase_result.get('user')
-        if not supabase_user or not hasattr(supabase_user, 'id') or not supabase_user.id:
-            return jsonify({
-                'success': False,
-                'error': 'No se pudo obtener el UID de Supabase'
-            }), 400
-            
-        supabase_uid = supabase_user.id
-        
-        # Crear doctor en la base de datos local
-        new_doctor = Doctor(
-            identifierCode=data['identifierCode'],
-            supabase_id=supabase_uid,
-            firstName=data['firstName'],
-            middleName=data.get('middleName'),
-            lastName1=data['lastName1'],
-            lastName2=data.get('lastName2'),
-            phoneNumber=data['phoneNumber'],
-            address=data['address'],
-            gender=data['gender'],
-            sex=data['sex'],
-            speciality=data['speciality'],
-            email=data['email'],
-            role='medico',
-            status='active',
-            created_by=supabase_uid,
-            updated_by=supabase_uid,
-            is_deleted=False
-        )
-        
-        db.session.add(new_doctor)
-        db.session.commit()
-        
-        logger.info(f"Doctor registered successfully: {data['email']} with Supabase ID: {supabase_uid}")
-        
-        return jsonify({
-            'success': True,
-            'message': 'Doctor registrado exitosamente. Revisa tu email para confirmar tu cuenta.',
-            'doctor_id': new_doctor.id,
-            'supabase_id': supabase_uid
-        })
-        
-    except Exception as e:
-        db.session.rollback()
-        logger.error(f"Error registering doctor: {str(e)}")
-        return jsonify({
-            'success': False,
-            'error': 'Error interno del servidor'
-        }), 500
+    """
+    Registra un nuevo doctor creando usuario en Supabase y guardando datos en MySQL.
+    NOTA: Este endpoint ahora está deshabilitado para registro público.
+    Use /api/admin/doctors para crear doctores (requiere rol de admin).
+    """
+    # Deshabilitar registro público - solo admins pueden crear doctores
+    return jsonify({
+        'success': False,
+        'error': 'El registro público está deshabilitado. Contacte al administrador del sistema.'
+    }), 403
