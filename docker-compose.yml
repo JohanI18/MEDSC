@@ -58,21 +58,6 @@ services:
     networks:
       - medsc-network
 
-  # phpMyAdmin para administrar la base de datos
-  phpmyadmin:
-    image: phpmyadmin/phpmyadmin
-    container_name: medsc_phpmyadmin
-    restart: always
-    environment:
-      PMA_HOST: db
-      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}
-    ports:
-      - "8080:80"
-    depends_on:
-      - db
-    networks:
-      - medsc-network
-
   # ICD-11 API (CIE-11) para diagnósticos y autocompletado
   icd11-api:
     image: whoicd/icd-api
