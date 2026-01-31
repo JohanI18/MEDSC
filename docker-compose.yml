@@ -73,6 +73,20 @@ services:
     networks:
       - medsc-network
 
+  # ICD-11 API (CIE-11) para diagnósticos y autocompletado
+  icd11-api:
+    image: whoicd/icd-api
+    container_name: medsc_icd11_api
+    restart: always
+    environment:
+      - acceptLicense=true
+      - saveAnalytics=false
+      - include=2025-01_es
+    ports:
+      - "8888:80"
+    networks:
+      - medsc-network
+
 volumes:
   mysql_data:
 

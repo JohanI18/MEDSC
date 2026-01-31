@@ -8,6 +8,7 @@ from routes.login import login
 from routes.patients import patients
 from routes.attention import attention
 from routes.chat import chat  # Importar el nuevo blueprint
+from routes.icd11 import icd11  # Blueprint para CIE-11 / ICD-11
 
 # Cargar variables de entorno desde el directorio padre
 load_dotenv(os.path.join(os.path.dirname(os.path.dirname(__file__)), '.env'))
@@ -61,6 +62,7 @@ def create_app():
     app.register_blueprint(patients)
     app.register_blueprint(attention)
     app.register_blueprint(chat)  # Registrar el nuevo blueprint
+    app.register_blueprint(icd11)  # Registrar blueprint de CIE-11
 
     return app
 
