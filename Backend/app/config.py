@@ -29,6 +29,20 @@ SUPABASE_KEY = os.getenv("SUPABASE_KEY")
 if not SUPABASE_URL or not SUPABASE_KEY:
     raise RuntimeError("SUPABASE_URL y SUPABASE_KEY deben estar definidos en las variables de entorno (.env)")
 
-# En Producción, asegúrate de generar una clave secreta segura
-# SECRET_KEY = secrets.token_urlsafe(32)
-SECRET_KEY = "1234"
+# Secret Key para Flask (sesiones, CSRF, etc.)
+# Generada de forma segura y almacenada en .env
+SECRET_KEY = os.getenv("SECRET_KEY")
+if not SECRET_KEY:
+    raise RuntimeError("SECRET_KEY debe estar definida en las variables de entorno (.env)")
+
+# Configuración de Encriptación de Datos Sensibles
+ENCRYPTION_KEY = os.getenv("ENCRYPTION_KEY")
+if not ENCRYPTION_KEY:
+    raise RuntimeError(
+        "ENCRYPTION_KEY debe estar definida en las variables de entorno (.env). "
+        "Genera una con: python -c \"from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())\""
+    )
+
+# Configuración de entorno
+FLASK_ENV = os.getenv("FLASK_ENV", "development")
+FLASK_DEBUG = os.getenv("FLASK_DEBUG", "false").lower() == "true"

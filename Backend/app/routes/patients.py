@@ -1,6 +1,12 @@
 from flask import Blueprint, render_template, session, request, redirect, url_for, flash, jsonify
 from models.models_flask import Patient, Allergy, FamilyBackground, PreExistingCondition, EmergencyContact
 from utils.db import db
+from utils.encryption import encrypt_field, decrypt_field, encrypt_for_search
+from utils.encryption_helpers import (
+    encrypt_patient_data, decrypt_patient_data,
+    encrypt_allergy_data, decrypt_allergy_data,
+    encrypt_emergency_contact_data, decrypt_emergency_contact_data
+)
 from sqlalchemy.exc import IntegrityError
 import logging
 import os
@@ -80,7 +86,7 @@ def show_patients():
 
 @patients.route('/api/patients', methods=['GET'])
 def get_patients_api():
-    """API endpoint to get all patients as JSON with all related data"""
+    """API endpoint to get all patients as JSON with all related data (decrypted)"""
     try:
         all_patients = Patient.query.filter_by(is_deleted=False).all()
         patients_data = []
@@ -92,45 +98,45 @@ def get_patients_api():
             pre_existing_conditions = PreExistingCondition.query.filter_by(idPatient=patient.id, is_deleted=False).all()
             family_backgrounds = FamilyBackground.query.filter_by(idPatient=patient.id, is_deleted=False).all()
             
-            # Format emergency contacts
+            # Format emergency contacts (desencriptar)
             emergency_contacts_data = []
             for contact in emergency_contacts:
                 emergency_contacts_data.append({
                     'id': contact.id,
-                    'first_name': contact.firstName,
-                    'last_name': contact.lastName,
-                    'full_name': f"{contact.firstName} {contact.lastName}",
+                    'first_name': decrypt_field(contact.firstName),
+                    'last_name': decrypt_field(contact.lastName),
+                    'full_name': f"{decrypt_field(contact.firstName)} {decrypt_field(contact.lastName)}",
                     'relationship': contact.relationship,
-                    'phone1': contact.phoneNumber1,
-                    'phone2': contact.phoneNumber2,
-                    'address': contact.address
+                    'phone1': decrypt_field(contact.phoneNumber1),
+                    'phone2': decrypt_field(contact.phoneNumber2),
+                    'address': decrypt_field(contact.address)
                 })
             
-            # Format allergies
+            # Format allergies (desencriptar)
             allergies_data = []
             for allergy in allergies:
                 allergies_data.append({
                     'id': allergy.id,
-                    'allergy': allergy.allergies
+                    'allergy': decrypt_field(allergy.allergies)
                 })
             
-            # Format pre-existing conditions
+            # Format pre-existing conditions (desencriptar)
             conditions_data = []
             for condition in pre_existing_conditions:
                 conditions_data.append({
                     'id': condition.id,
-                    'disease_name': condition.diseaseName,
+                    'disease_name': decrypt_field(condition.diseaseName),
                     'time': condition.time.isoformat() if condition.time else None,
-                    'medicament': condition.medicament,
-                    'treatment': condition.treatment
+                    'medicament': decrypt_field(condition.medicament),
+                    'treatment': decrypt_field(condition.treatment)
                 })
             
-            # Format family backgrounds
+            # Format family backgrounds (desencriptar)
             family_backgrounds_data = []
             for background in family_backgrounds:
                 family_backgrounds_data.append({
                     'id': background.id,
-                    'family_background': background.familyBackground,
+                    'family_background': decrypt_field(background.familyBackground),
                     'time': background.time.isoformat() if background.time else None,
                     'degree_relationship': background.degreeRelationship
                 })
@@ -138,15 +144,16 @@ def get_patients_api():
             # Get first emergency contact for backward compatibility
             first_emergency_contact = emergency_contacts[0] if emergency_contacts else None
             
+            # Desencriptar datos del paciente
             patient_dict = {
                 'id': patient.id,
-                'first_name': patient.firstName,
-                'middle_name': patient.middleName,
-                'last_name': patient.lastName1,
-                'last_name2': patient.lastName2,
-                'email': patient.email,
-                'phone': patient.phoneNumber,
-                'address': patient.address,
+                'first_name': decrypt_field(patient.firstName),
+                'middle_name': decrypt_field(patient.middleName),
+                'last_name': decrypt_field(patient.lastName1),
+                'last_name2': decrypt_field(patient.lastName2),
+                'email': decrypt_field(patient.email),
+                'phone': decrypt_field(patient.phoneNumber),
+                'address': decrypt_field(patient.address),
                 'date_of_birth': patient.birthdate.isoformat() if patient.birthdate else None,
                 'gender': patient.gender,
                 'sex': patient.sex,
@@ -155,10 +162,10 @@ def get_patients_api():
                 'job': patient.job,
                 'blood_type': patient.bloodType,
                 'identification_type': patient.identifierType,
-                'identification_number': patient.identifierCode,
+                'identification_number': decrypt_field(patient.identifierCode),
                 # Backward compatibility fields for first emergency contact
-                'emergency_contact_name': f"{first_emergency_contact.firstName} {first_emergency_contact.lastName}" if first_emergency_contact else None,
-                'emergency_contact_phone': first_emergency_contact.phoneNumber1 if first_emergency_contact else None,
+                'emergency_contact_name': f"{decrypt_field(first_emergency_contact.firstName)} {decrypt_field(first_emergency_contact.lastName)}" if first_emergency_contact else None,
+                'emergency_contact_phone': decrypt_field(first_emergency_contact.phoneNumber1) if first_emergency_contact else None,
                 # Complete related data
                 'allergies': allergies_data,
                 'emergency_contacts': emergency_contacts_data,
@@ -609,7 +616,7 @@ def add_patients():
 
 @patients.route('/api/patients', methods=['POST'])
 def add_patient_api():
-    """API endpoint to add a new patient"""
+    """API endpoint to add a new patient with encrypted sensitive data"""
     try:
         # Verificar autenticación compatible con Supabase
         if not session.get('autenticado'):
@@ -629,9 +636,10 @@ def add_patient_api():
             if not data.get(field):
                 return jsonify({'success': False, 'error': f'El campo {field} es requerido'}), 400
 
-        # Check if patient already exists
+        # Check if patient already exists (need to encrypt the identifier for search)
+        encrypted_identifier = encrypt_for_search(data.get('identification_number'))
         existing_patient = Patient.query.filter_by(
-            identifierCode=data.get('identification_number'),
+            identifierCode=encrypted_identifier,
             is_deleted=False
         ).first()
 
@@ -643,24 +651,37 @@ def add_patient_api():
         if not sessionID:
             return jsonify({'success': False, 'error': 'Sesión no válida'}), 401
 
-        # Create new patient with all optional fields
+        # =====================================================================
+        # ENCRIPTAR DATOS SENSIBLES DEL PACIENTE
+        # =====================================================================
+        # Campos determinísticos (permiten búsqueda): identifierCode, email, firstName, lastName1, phoneNumber
+        # Campos no determinísticos (máxima seguridad): address, middleName, lastName2
+        
         new_patient = Patient(
             identifierType=data.get('identification_type'),
-            identifierCode=data.get('identification_number'),
-            firstName=data.get('first_name'),
-            middleName=data.get('middle_name'),
-            lastName1=data.get('last_name'),
-            lastName2=data.get('last_name2'),
+            # Determinístico - permite búsqueda por cédula/ID
+            identifierCode=encrypt_field(data.get('identification_number'), 'Patient', 'identifierCode'),
+            # Determinístico - permite búsqueda por nombre
+            firstName=encrypt_field(data.get('first_name'), 'Patient', 'firstName'),
+            # No determinístico - máxima seguridad
+            middleName=encrypt_field(data.get('middle_name'), 'Patient', 'middleName'),
+            # Determinístico - permite búsqueda por apellido
+            lastName1=encrypt_field(data.get('last_name'), 'Patient', 'lastName1'),
+            # No determinístico
+            lastName2=encrypt_field(data.get('last_name2'), 'Patient', 'lastName2'),
             nationality=data.get('nationality'),
-            address=data.get('address'),
-            phoneNumber=data.get('phone'),
+            # No determinístico - dirección es muy sensible
+            address=encrypt_field(data.get('address'), 'Patient', 'address'),
+            # Determinístico - permite búsqueda por teléfono
+            phoneNumber=encrypt_field(data.get('phone'), 'Patient', 'phoneNumber'),
             birthdate=data.get('date_of_birth'),
             gender=data.get('gender'),
             sex=data.get('sex'),
             civilStatus=data.get('civil_status'),
             job=data.get('job'),
             bloodType=data.get('blood_type'),
-            email=data.get('email'),
+            # Determinístico - permite búsqueda por email
+            email=encrypt_field(data.get('email'), 'Patient', 'email'),
             created_by=sessionID,
             updated_by=sessionID
         )
@@ -668,63 +689,68 @@ def add_patient_api():
         db.session.add(new_patient)
         db.session.flush()  # Flush to get the ID without committing
 
-        # Create allergies
+        # Create allergies with encryption
         if data.get('allergies'):
             logger.info(f"Processing allergies: {data.get('allergies')}")
             for allergy_text in data.get('allergies'):
                 if allergy_text and str(allergy_text).strip():
+                    # No determinístico - datos médicos sensibles
+                    encrypted_allergy = encrypt_field(str(allergy_text).strip(), 'Allergy', 'allergies')
                     new_allergy = Allergy(
-                        allergies=str(allergy_text).strip(),
+                        allergies=encrypted_allergy,
                         idPatient=new_patient.id,
                         created_by=sessionID,
                         updated_by=sessionID
                     )
                     db.session.add(new_allergy)
-                    logger.info(f"Added allergy: {str(allergy_text).strip()}")
+                    logger.info(f"Added allergy (encrypted)")
 
-        # Create emergency contacts
+        # Create emergency contacts with encryption
         if data.get('emergency_contacts'):
             logger.info(f"Processing emergency contacts: {data.get('emergency_contacts')}")
             for contact_data in data.get('emergency_contacts'):
                 if contact_data.get('first_name') and contact_data.get('last_name'):
                     new_contact = EmergencyContact(
                         idPatient=new_patient.id,
-                        firstName=contact_data.get('first_name'),
-                        lastName=contact_data.get('last_name'),
+                        # No determinístico - contactos de emergencia
+                        firstName=encrypt_field(contact_data.get('first_name'), 'EmergencyContact', 'firstName'),
+                        lastName=encrypt_field(contact_data.get('last_name'), 'EmergencyContact', 'lastName'),
                         relationship=contact_data.get('relationship', 'Contacto de emergencia'),
-                        phoneNumber1=contact_data.get('phone1', ''),
-                        phoneNumber2=contact_data.get('phone2'),
-                        address=contact_data.get('address', data.get('address', '')),
+                        phoneNumber1=encrypt_field(contact_data.get('phone1', ''), 'EmergencyContact', 'phoneNumber1'),
+                        phoneNumber2=encrypt_field(contact_data.get('phone2'), 'EmergencyContact', 'phoneNumber2'),
+                        address=encrypt_field(contact_data.get('address', data.get('address', '')), 'EmergencyContact', 'address'),
                         created_by=sessionID,
                         updated_by=sessionID
                     )
                     db.session.add(new_contact)
-                    logger.info(f"Added emergency contact: {contact_data.get('first_name')} {contact_data.get('last_name')}")
+                    logger.info(f"Added emergency contact (encrypted)")
 
-        # Create pre-existing conditions
+        # Create pre-existing conditions with encryption
         if data.get('pre_existing_conditions'):
             logger.info(f"Processing pre-existing conditions: {data.get('pre_existing_conditions')}")
             for condition_data in data.get('pre_existing_conditions'):
                 if condition_data.get('disease_name'):
                     new_condition = PreExistingCondition(
-                        diseaseName=condition_data.get('disease_name'),
+                        # No determinístico - datos médicos
+                        diseaseName=encrypt_field(condition_data.get('disease_name'), 'PreExistingCondition', 'diseaseName'),
                         time=condition_data.get('time'),
-                        medicament=condition_data.get('medicament'),
-                        treatment=condition_data.get('treatment'),
+                        medicament=encrypt_field(condition_data.get('medicament'), 'PreExistingCondition', 'medicament'),
+                        treatment=encrypt_field(condition_data.get('treatment'), 'PreExistingCondition', 'treatment'),
                         idPatient=new_patient.id,
                         created_by=sessionID,
                         updated_by=sessionID
                     )
                     db.session.add(new_condition)
-                    logger.info(f"Added pre-existing condition: {condition_data.get('disease_name')}")
+                    logger.info(f"Added pre-existing condition (encrypted)")
 
-        # Create family backgrounds
+        # Create family backgrounds with encryption
         if data.get('family_backgrounds'):
             logger.info(f"Processing family backgrounds: {data.get('family_backgrounds')}")
             for family_data in data.get('family_backgrounds'):
                 if family_data.get('family_background'):
                     new_family_bg = FamilyBackground(
-                        familyBackground=family_data.get('family_background'),
+                        # No determinístico - datos médicos
+                        familyBackground=encrypt_field(family_data.get('family_background'), 'FamilyBackground', 'familyBackground'),
                         time=family_data.get('time'),
                         degreeRelationship=family_data.get('degree_relationship', '1'),
                         idPatient=new_patient.id,
@@ -732,7 +758,7 @@ def add_patient_api():
                         updated_by=sessionID
                     )
                     db.session.add(new_family_bg)
-                    logger.info(f"Added family background: {family_data.get('family_background')}")
+                    logger.info(f"Added family background (encrypted)")
 
         # Legacy support: Create emergency contact if provided in old format
         elif data.get('emergency_contact_name') or data.get('emergency_contact_phone'):
@@ -744,52 +770,57 @@ def add_patient_api():
             
             emergency_contact = EmergencyContact(
                 idPatient=new_patient.id,
-                firstName=first_name,
-                lastName=last_name,
-                phoneNumber1=data.get('emergency_contact_phone', ''),
+                firstName=encrypt_field(first_name, 'EmergencyContact', 'firstName'),
+                lastName=encrypt_field(last_name, 'EmergencyContact', 'lastName'),
+                phoneNumber1=encrypt_field(data.get('emergency_contact_phone', ''), 'EmergencyContact', 'phoneNumber1'),
                 relationship='Contacto de emergencia',
-                address=data.get('address', '')  # Use patient address as default
+                address=encrypt_field(data.get('address', ''), 'EmergencyContact', 'address'),
+                created_by=sessionID,
+                updated_by=sessionID
             )
             db.session.add(emergency_contact)
 
         db.session.commit()
 
+        # =====================================================================
+        # DESENCRIPTAR DATOS PARA LA RESPUESTA
+        # =====================================================================
         # Get all created related data for response
         allergies = Allergy.query.filter_by(idPatient=new_patient.id, is_deleted=False).all()
         emergency_contacts = EmergencyContact.query.filter_by(idPatient=new_patient.id, is_deleted=False).all()
         pre_existing_conditions = PreExistingCondition.query.filter_by(idPatient=new_patient.id, is_deleted=False).all()
         family_backgrounds = FamilyBackground.query.filter_by(idPatient=new_patient.id, is_deleted=False).all()
 
-        # Format response data
-        allergies_data = [{'id': a.id, 'allergy': a.allergies} for a in allergies]
+        # Format response data (desencriptar para mostrar)
+        allergies_data = [{'id': a.id, 'allergy': decrypt_field(a.allergies)} for a in allergies]
         
         emergency_contacts_data = []
         for contact in emergency_contacts:
             emergency_contacts_data.append({
                 'id': contact.id,
-                'first_name': contact.firstName,
-                'last_name': contact.lastName,
+                'first_name': decrypt_field(contact.firstName),
+                'last_name': decrypt_field(contact.lastName),
                 'relationship': contact.relationship,
-                'phone1': contact.phoneNumber1,
-                'phone2': contact.phoneNumber2,
-                'address': contact.address
+                'phone1': decrypt_field(contact.phoneNumber1),
+                'phone2': decrypt_field(contact.phoneNumber2),
+                'address': decrypt_field(contact.address)
             })
 
         conditions_data = []
         for condition in pre_existing_conditions:
             conditions_data.append({
                 'id': condition.id,
-                'disease_name': condition.diseaseName,
+                'disease_name': decrypt_field(condition.diseaseName),
                 'time': condition.time.isoformat() if condition.time else None,
-                'medicament': condition.medicament,
-                'treatment': condition.treatment
+                'medicament': decrypt_field(condition.medicament),
+                'treatment': decrypt_field(condition.treatment)
             })
 
         family_backgrounds_data = []
         for background in family_backgrounds:
             family_backgrounds_data.append({
                 'id': background.id,
-                'family_background': background.familyBackground,
+                'family_background': decrypt_field(background.familyBackground),
                 'time': background.time.isoformat() if background.time else None,
                 'degree_relationship': background.degreeRelationship
             })
@@ -797,16 +828,16 @@ def add_patient_api():
         # Get first emergency contact for backward compatibility
         first_emergency_contact = emergency_contacts[0] if emergency_contacts else None
 
-        # Return the created patient data with all relationships
+        # Return the created patient data with all relationships (desencriptado)
         patient_data = {
             'id': new_patient.id,
-            'first_name': new_patient.firstName,
-            'middle_name': new_patient.middleName,
-            'last_name': new_patient.lastName1,
-            'last_name2': new_patient.lastName2,
-            'email': new_patient.email,
-            'phone': new_patient.phoneNumber,
-            'address': new_patient.address,
+            'first_name': decrypt_field(new_patient.firstName),
+            'middle_name': decrypt_field(new_patient.middleName),
+            'last_name': decrypt_field(new_patient.lastName1),
+            'last_name2': decrypt_field(new_patient.lastName2),
+            'email': decrypt_field(new_patient.email),
+            'phone': decrypt_field(new_patient.phoneNumber),
+            'address': decrypt_field(new_patient.address),
             'date_of_birth': new_patient.birthdate.isoformat() if new_patient.birthdate else None,
             'gender': new_patient.gender,
             'sex': new_patient.sex,
@@ -815,10 +846,10 @@ def add_patient_api():
             'job': new_patient.job,
             'blood_type': new_patient.bloodType,
             'identification_type': new_patient.identifierType,
-            'identification_number': new_patient.identifierCode,
+            'identification_number': decrypt_field(new_patient.identifierCode),
             # Backward compatibility fields
-            'emergency_contact_name': f"{first_emergency_contact.firstName} {first_emergency_contact.lastName}" if first_emergency_contact else None,
-            'emergency_contact_phone': first_emergency_contact.phoneNumber1 if first_emergency_contact else None,
+            'emergency_contact_name': f"{decrypt_field(first_emergency_contact.firstName)} {decrypt_field(first_emergency_contact.lastName)}" if first_emergency_contact else None,
+            'emergency_contact_phone': decrypt_field(first_emergency_contact.phoneNumber1) if first_emergency_contact else None,
             # Complete related data
             'allergies': allergies_data,
             'emergency_contacts': emergency_contacts_data,
@@ -827,7 +858,7 @@ def add_patient_api():
             'created_at': new_patient.created_at.isoformat() if new_patient.created_at else None
         }
 
-        logger.info(f"Patient created via API: {new_patient.identifierCode} with ID: {new_patient.id}")
+        logger.info(f"Patient created via API: ID {new_patient.id} (data encrypted)")
         
         return jsonify({
             'success': True,

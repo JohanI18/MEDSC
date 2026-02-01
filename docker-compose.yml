@@ -1,7 +1,7 @@
 # docker-compose.yml
 
 services:
-  # Base de datos MySQL
+  # Base de datos MySQL con Encriptación TDE
   db:
     image: mysql:8.0
     container_name: medsc_mysql_db
@@ -17,8 +17,23 @@ services:
       - "3306:3306"
     volumes:
       - mysql_data:/var/lib/mysql
+      - ./Backend/mysql-init:/docker-entrypoint-initdb.d:ro
+      - mysql_keyring:/var/lib/mysql-keyring
+    command:
+      - --default-authentication-plugin=caching_sha2_password
+      - --early-plugin-load=keyring_file.so
+      - --keyring_file_data=/var/lib/mysql-keyring/keyring
+      - --innodb_redo_log_encrypt=ON
+      - --innodb_undo_log_encrypt=ON
+      - --binlog_encryption=ON
+      - --require_secure_transport=OFF
     networks:
       - medsc-network
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-p${MYSQL_ROOT_PASSWORD}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
 
   # Backend Flask
   backend:
@@ -74,6 +89,7 @@ services:
 
 volumes:
   mysql_data:
+  mysql_keyring:
 
 networks:
   medsc-network:
