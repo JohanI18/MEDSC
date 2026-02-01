@@ -70,11 +70,18 @@ class MedicalDataEncryption:
     def _initialize(self) -> None:
         """Inicializa las instancias de encriptación"""
         encryption_key = os.getenv('ENCRYPTION_KEY')
+        encryption_salt = os.getenv('ENCRYPTION_SALT')
         
         if not encryption_key:
             raise EncryptionError(
                 "ENCRYPTION_KEY no está definida en las variables de entorno. "
                 "Genera una con: python -c \"from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())\""
+            )
+        
+        if not encryption_salt:
+            raise EncryptionError(
+                "ENCRYPTION_SALT no está definida en las variables de entorno. "
+                "Genera una con: python -c \"import secrets; print(secrets.token_hex(32))\""
             )
         
         try:
@@ -86,11 +93,14 @@ class MedicalDataEncryption:
             # Usamos PBKDF2 para derivar una clave consistente
             key_bytes = base64.urlsafe_b64decode(encryption_key.encode())
             
+            # Convertir salt de hex string a bytes
+            salt_bytes = bytes.fromhex(encryption_salt)
+            
             # Derivar clave de 512 bits para AES-SIV (requiere 64 bytes)
             kdf = PBKDF2HMAC(
                 algorithm=hashes.SHA256(),
                 length=64,  # 512 bits para AES-256-SIV
-                salt=b'medsc_deterministic_salt_v1',  # Salt fijo para determinismo
+                salt=salt_bytes,  # Salt desde variable de entorno
                 iterations=100000,
             )
             self._deterministic_key = kdf.derive(key_bytes)

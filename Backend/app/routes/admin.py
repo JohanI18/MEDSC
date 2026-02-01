@@ -13,6 +13,90 @@ admin = Blueprint('admin', __name__, url_prefix='/api/admin')
 # Clave secreta para crear el primer admin (cambiar en producción)
 BOOTSTRAP_SECRET = os.environ.get('ADMIN_BOOTSTRAP_SECRET', 'medsc-admin-setup-2026')
 
+# Regex para validación de email
+EMAIL_REGEX = r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$'
+
+# Campos requeridos para crear un doctor
+REQUIRED_DOCTOR_FIELDS = [
+    'email', 'password', 'firstName', 'lastName1', 'identifierCode',
+    'phoneNumber', 'address', 'gender', 'sex', 'speciality'
+]
+
+
+def validate_doctor_data(data):
+    """
+    Valida los datos requeridos para crear un doctor.
+    Retorna (success, error_message)
+    """
+    # Validar campos requeridos
+    missing_fields = [field for field in REQUIRED_DOCTOR_FIELDS if not data.get(field)]
+    if missing_fields:
+        return False, f'Campos requeridos faltantes: {", ".join(missing_fields)}'
+    
+    # Validar email
+    if not re.match(EMAIL_REGEX, data['email']):
+        return False, 'Email inválido'
+    
+    # Validar contraseña
+    if len(data['password']) < 6:
+        return False, 'La contraseña debe tener al menos 6 caracteres'
+    
+    return True, None
+
+
+def build_user_metadata(data, role=None):
+    """Construye los metadatos del usuario para Supabase"""
+    full_name = f"{data['firstName']} {data.get('middleName', '')} {data['lastName1']} {data.get('lastName2', '')}".strip()
+    metadata = {
+        'full_name': full_name,
+        'first_name': data['firstName'],
+        'last_name': data['lastName1'],
+        'speciality': data['speciality']
+    }
+    if role:
+        metadata['role'] = role
+    return metadata
+
+
+def create_supabase_user(email, password, metadata):
+    """
+    Crea un usuario en Supabase.
+    Retorna (success, supabase_uid_or_error)
+    """
+    supabase_result = supabase_auth.sign_up(email, password, metadata)
+    
+    if not supabase_result['success']:
+        return False, f'Error en Supabase: {supabase_result["message"]}'
+    
+    supabase_user = supabase_result.get('user')
+    if not supabase_user or not hasattr(supabase_user, 'id') or not supabase_user.id:
+        return False, 'No se pudo obtener el UID de Supabase'
+    
+    return True, supabase_user.id
+
+
+def create_doctor_record(data, supabase_uid, created_by, role='medico'):
+    """Crea un registro de Doctor en la base de datos local"""
+    return Doctor(
+        identifierCode=data['identifierCode'],
+        supabase_id=supabase_uid,
+        firstName=data['firstName'],
+        middleName=data.get('middleName'),
+        lastName1=data['lastName1'],
+        lastName2=data.get('lastName2'),
+        phoneNumber=data['phoneNumber'],
+        address=data['address'],
+        gender=data['gender'],
+        sex=data['sex'],
+        speciality=data['speciality'],
+        email=data['email'],
+        role=role,
+        status='active',
+        created_by=created_by,
+        updated_by=created_by,
+        is_deleted=False
+    )
+
 
 @admin.route('/bootstrap', methods=['POST'])
 def bootstrap_admin():
@@ -38,76 +122,22 @@ def bootstrap_admin():
                 'error': 'Ya existe un administrador en el sistema. Use el panel de admin para crear más usuarios.'
             }), 400
         
-        # Validar datos requeridos
-        required_fields = [
-            'email', 'password', 'firstName', 'lastName1', 'identifierCode',
-            'phoneNumber', 'address', 'gender', 'sex', 'speciality'
-        ]
-        
-        missing_fields = [field for field in required_fields if not data.get(field)]
-        if missing_fields:
-            return jsonify({
-                'success': False,
-                'error': f'Campos requeridos faltantes: {", ".join(missing_fields)}'
-            }), 400
-        
-        # Validar email
-        email_regex = r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$'
-        if not re.match(email_regex, data['email']):
-            return jsonify({'success': False, 'error': 'Email inválido'}), 400
-        
-        # Validar contraseña
-        if len(data['password']) < 6:
-            return jsonify({
-                'success': False,
-                'error': 'La contraseña debe tener al menos 6 caracteres'
-            }), 400
+        # Validar datos
+        is_valid, error_msg = validate_doctor_data(data)
+        if not is_valid:
+            return jsonify({'success': False, 'error': error_msg}), 400
         
         # Crear usuario en Supabase
-        full_name = f"{data['firstName']} {data.get('middleName', '')} {data['lastName1']} {data.get('lastName2', '')}".strip()
-        metadata = {
-            'full_name': full_name,
-            'first_name': data['firstName'],
-            'last_name': data['lastName1'],
-            'speciality': data['speciality'],
-            'role': 'admin'
-        }
+        metadata = build_user_metadata(data, role='admin')
+        success, result = create_supabase_user(data['email'], data['password'], metadata)
         
-        supabase_result = supabase_auth.sign_up(data['email'], data['password'], metadata)
+        if not success:
+            return jsonify({'success': False, 'error': result}), 400
         
-        if not supabase_result['success']:
-            return jsonify({
-                'success': False,
-                'error': f'Error en Supabase: {supabase_result["message"]}'
-            }), 400
-        
-        # Obtener Supabase UID
-        supabase_user = supabase_result.get('user')
-        if not supabase_user or not hasattr(supabase_user, 'id') or not supabase_user.id:
-            return jsonify({'success': False, 'error': 'No se pudo obtener el UID de Supabase'}), 400
-            
-        supabase_uid = supabase_user.id
+        supabase_uid = result
         
         # Crear admin en la base de datos local
-        new_admin = Doctor(
-            identifierCode=data['identifierCode'],
-            supabase_id=supabase_uid,
-            firstName=data['firstName'],
-            middleName=data.get('middleName'),
-            lastName1=data['lastName1'],
-            lastName2=data.get('lastName2'),
-            phoneNumber=data['phoneNumber'],
-            address=data['address'],
-            gender=data['gender'],
-            sex=data['sex'],
-            speciality=data['speciality'],
-            email=data['email'],
-            role='admin',  # Rol de administrador
-            status='active',
-            created_by=supabase_uid,
-            updated_by=supabase_uid,
-            is_deleted=False
-        )
+        new_admin = create_doctor_record(data, supabase_uid, supabase_uid, role='admin')
         
         db.session.add(new_admin)
         db.session.commit()
@@ -212,31 +242,10 @@ def create_doctor():
     try:
         data = request.get_json()
         
-        # Validate required fields
-        required_fields = [
-            'email', 'password', 'firstName', 'lastName1', 'identifierCode',
-            'phoneNumber', 'address', 'gender', 'sex', 'speciality'
-        ]
-        
-        missing_fields = [field for field in required_fields if not data.get(field)]
-        
-        if missing_fields:
-            return jsonify({
-                'success': False,
-                'error': f'Campos requeridos faltantes: {", ".join(missing_fields)}'
-            }), 400
-        
-        # Validate email
-        email_regex = r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$'
-        if not re.match(email_regex, data['email']):
-            return jsonify({'success': False, 'error': 'Email inválido'}), 400
-        
-        # Validate password
-        if len(data['password']) < 6:
-            return jsonify({
-                'success': False,
-                'error': 'La contraseña debe tener al menos 6 caracteres'
-            }), 400
+        # Validar datos
+        is_valid, error_msg = validate_doctor_data(data)
+        if not is_valid:
+            return jsonify({'success': False, 'error': error_msg}), 400
         
         # Check if email or identifier already exists
         existing_email = Doctor.query.filter_by(email=data['email'], is_deleted=False).first()
@@ -250,51 +259,19 @@ def create_doctor():
                 'error': 'El número de identificación ya está registrado'
             }), 400
         
-        # Create user in Supabase
-        full_name = f"{data['firstName']} {data.get('middleName', '')} {data['lastName1']} {data.get('lastName2', '')}".strip()
-        metadata = {
-            'full_name': full_name,
-            'first_name': data['firstName'],
-            'last_name': data['lastName1'],
-            'speciality': data['speciality']
-        }
+        # Crear usuario en Supabase
+        metadata = build_user_metadata(data)
+        success, result = create_supabase_user(data['email'], data['password'], metadata)
         
-        supabase_result = supabase_auth.sign_up(data['email'], data['password'], metadata)
+        if not success:
+            return jsonify({'success': False, 'error': result}), 400
         
-        if not supabase_result['success']:
-            return jsonify({
-                'success': False,
-                'error': f'Error en Supabase: {supabase_result["message"]}'
-            }), 400
-        
-        # Get Supabase UID
-        supabase_user = supabase_result.get('user')
-        if not supabase_user or not hasattr(supabase_user, 'id') or not supabase_user.id:
-            return jsonify({'success': False, 'error': 'No se pudo obtener el UID de Supabase'}), 400
-            
-        supabase_uid = supabase_user.id
+        supabase_uid = result
         admin_id = session.get('user_id')
         
         # Create doctor in local database
-        new_doctor = Doctor(
-            identifierCode=data['identifierCode'],
-            supabase_id=supabase_uid,
-            firstName=data['firstName'],
-            middleName=data.get('middleName'),
-            lastName1=data['lastName1'],
-            lastName2=data.get('lastName2'),
-            phoneNumber=data['phoneNumber'],
-            address=data['address'],
-            gender=data['gender'],
-            sex=data['sex'],
-            speciality=data['speciality'],
-            email=data['email'],
-            role=data.get('role', 'medico'),  # Allow setting role
-            status='active',
-            created_by=admin_id,
-            updated_by=admin_id,
-            is_deleted=False
-        )
+        role = data.get('role', 'medico')
+        new_doctor = create_doctor_record(data, supabase_uid, admin_id, role=role)
         
         db.session.add(new_doctor)
         db.session.commit()

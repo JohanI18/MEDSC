@@ -73,6 +73,20 @@ preExistingConditions = []
 emergencyContacts = []  # Add missing emergency contacts list
 current_patient_id = None  # Add this to track the current patient being processed
 
+
+def render_patient_info_template():
+    """Helper function to render the patient info template with current temporary data"""
+    return render_template(
+        'home.html', 
+        view='addPatient', 
+        sec_view="addPatientInfo",
+        allergies=allergies, 
+        emergencyContacts=emergencyContacts, 
+        familyBack=familyBack, 
+        preExistingConditions=preExistingConditions,
+        current_patient_id=current_patient_id
+    )
+
 @patients.route('/patients')
 def show_patients():
     """Display all patients with proper error handling"""
@@ -910,10 +924,7 @@ def add_allergies():
             logger.error(f"Error adding allergy: {str(e)}")
             flash('Error al agregar alergia', 'error')
     
-    return render_template('home.html', view='addPatient', sec_view="addPatientInfo", 
-                         allergies=allergies, emergencyContacts=emergencyContacts, 
-                         familyBack=familyBack, preExistingConditions=preExistingConditions,
-                         current_patient_id=current_patient_id)
+    return render_patient_info_template()
 
 @patients.route('/remove-allergy', methods=['POST'])
 def remove_allergy():
@@ -929,10 +940,7 @@ def remove_allergy():
         logger.error(f"Error removing allergy: {str(e)}")
         flash('Error al eliminar alergia', 'error')
     
-    return render_template('home.html', view='addPatient', sec_view="addPatientInfo", 
-                         allergies=allergies, emergencyContacts=emergencyContacts, 
-                         familyBack=familyBack, preExistingConditions=preExistingConditions,
-                         current_patient_id=current_patient_id)
+    return render_patient_info_template()
 
 # EMERGENCY CONTACT ROUTES
 @patients.route('/add-contact', methods=['GET', 'POST'])
@@ -989,10 +997,7 @@ def add_contact():
             logger.error(f"Error adding emergency contact: {str(e)}")
             flash('Error al agregar contacto de emergencia', 'error')
     
-    return render_template('home.html', view='addPatient', sec_view="addPatientInfo", 
-                         emergencyContacts=emergencyContacts, allergies=allergies, 
-                         familyBack=familyBack, preExistingConditions=preExistingConditions,
-                         current_patient_id=current_patient_id)
+    return render_patient_info_template()
 
 @patients.route('/remove-contact', methods=['POST'])
 def remove_contact():
@@ -1008,10 +1013,7 @@ def remove_contact():
         logger.error(f"Error removing emergency contact: {str(e)}")
         flash('Error al eliminar contacto de emergencia', 'error')
     
-    return render_template('home.html', view='addPatient', sec_view="addPatientInfo", 
-                         emergencyContacts=emergencyContacts, allergies=allergies, 
-                         familyBack=familyBack, preExistingConditions=preExistingConditions,
-                         current_patient_id=current_patient_id)
+    return render_patient_info_template()
 
 # FAMILY BACKGROUND ROUTES
 @patients.route('/add-familyBack', methods=['GET', 'POST'])
@@ -1060,10 +1062,7 @@ def add_familyBack():
             logger.error(f"Error adding family background: {str(e)}")
             flash('Error al agregar antecedente familiar', 'error')
     
-    return render_template('home.html', view='addPatient', sec_view="addPatientInfo", 
-                         familyBack=familyBack, emergencyContacts=emergencyContacts, 
-                         allergies=allergies, preExistingConditions=preExistingConditions,
-                         current_patient_id=current_patient_id)
+    return render_patient_info_template()
 
 @patients.route('/remove-familyBack', methods=['POST'])
 def remove_familyBack():
@@ -1079,10 +1078,7 @@ def remove_familyBack():
         logger.error(f"Error removing family background: {str(e)}")
         flash('Error al eliminar antecedente familiar', 'error')
     
-    return render_template('home.html', view='addPatient', sec_view="addPatientInfo", 
-                         familyBack=familyBack, emergencyContacts=emergencyContacts, 
-                         allergies=allergies, preExistingConditions=preExistingConditions,
-                         current_patient_id=current_patient_id)
+    return render_patient_info_template()
 
 # PRE-EXISTING CONDITIONS ROUTES
 @patients.route('/add-conditions', methods=['GET', 'POST'])
@@ -1133,10 +1129,7 @@ def add_conditions():
             logger.error(f"Error adding pre-existing condition: {str(e)}")
             flash('Error al agregar condición preexistente', 'error')
     
-    return render_template('home.html', view='addPatient', sec_view="addPatientInfo", 
-                         preExistingConditions=preExistingConditions, emergencyContacts=emergencyContacts, 
-                         allergies=allergies, familyBack=familyBack,
-                         current_patient_id=current_patient_id)
+    return render_patient_info_template()
 
 @patients.route('/remove-condition', methods=['POST'])
 def remove_condition():
@@ -1152,10 +1145,7 @@ def remove_condition():
         logger.error(f"Error removing pre-existing condition: {str(e)}")
         flash('Error al eliminar condición preexistente', 'error')
     
-    return render_template('home.html', view='addPatient', sec_view="addPatientInfo", 
-                         preExistingConditions=preExistingConditions, emergencyContacts=emergencyContacts, 
-                         allergies=allergies, familyBack=familyBack,
-                         current_patient_id=current_patient_id)
+    return render_patient_info_template()
 
 # COMPLETION AND MANAGEMENT ROUTES
 @patients.route('/complete-patient-registration', methods=['POST'])

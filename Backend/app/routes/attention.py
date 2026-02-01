@@ -55,53 +55,304 @@ def is_authenticated():
     
     return False
 
-def get_doctor_info_and_session():
-    """Obtiene información del doctor y sessionID de manera compatible con Supabase"""
+
+def _get_supabase_doctor_info():
+    """Obtiene información del doctor para autenticación Supabase"""
+    email = session.get('email', 'Doctor')
+    user_id = session.get('user_id', 'demo')
+    name_parts = email.split('@')[0].split('.')
+    
+    doctor_info = {
+        'firstName': name_parts[0].capitalize() if name_parts else 'Doctor',
+        'lastName1': name_parts[1].capitalize() if len(name_parts) > 1 else 'Supabase',
+        'speciality': 'Medicina General'
+    }
+    return doctor_info, user_id
+
+
+def _get_local_doctor_info():
+    """Obtiene información del doctor desde la base de datos local"""
     from models.models_flask import Doctor
     
-    doctor_info = None
-    sessionID = None
+    try:
+        doctor = Doctor.query.filter_by(identifierCode=session['cedula'], is_deleted=False).first()
+        if doctor:
+            return {
+                'firstName': doctor.firstName,
+                'lastName1': doctor.lastName1,
+                'speciality': doctor.speciality
+            }, session['cedula']
+    except Exception as e:
+        logger.error(f"Error fetching doctor info: {str(e)}")
     
+    return None, None
+
+
+def _get_api_doctor_info():
+    """Obtiene información del doctor para peticiones API"""
+    return {
+        'firstName': 'API',
+        'lastName1': 'Doctor',
+        'speciality': 'Medicina General'
+    }, 'api_user'
+
+
+def _is_api_request():
+    """Verifica si la petición es de tipo API"""
+    return request.is_json or request.headers.get('Content-Type') == 'application/json'
+
+
+def get_doctor_info_and_session():
+    """Obtiene información del doctor y sessionID de manera compatible con Supabase"""
     # Verificar si tenemos conexión a la base de datos
     has_database = os.environ.get('USE_DATABASE', 'false').lower() == 'true' and check_database_connection()
     
     if session.get('auth_provider') == 'supabase':
-        # Para Supabase, creamos información ficticia del doctor
-        email = session.get('email', 'Doctor')
-        user_id = session.get('user_id', 'demo')
-        name_parts = email.split('@')[0].split('.')
-        
-        doctor_info = {
-            'firstName': name_parts[0].capitalize() if len(name_parts) > 0 else 'Doctor',
-            'lastName1': name_parts[1].capitalize() if len(name_parts) > 1 else 'Supabase',
-            'speciality': 'Medicina General'
-        }
-        sessionID = user_id
-        
-    elif 'cedula' in session and has_database:
-        # Código original para login local (solo si hay base de datos)
-        try:
-            doctor = Doctor.query.filter_by(identifierCode=session['cedula'], is_deleted=False).first()
-            if doctor:
-                doctor_info = {
-                    'firstName': doctor.firstName,
-                    'lastName1': doctor.lastName1,
-                    'speciality': doctor.speciality
-                }
-                sessionID = session['cedula']
-        except Exception as e:
-            logger.error(f"Error fetching doctor info: {str(e)}")
-    else:
-        # For API requests without proper session, create a dummy doctor
-        if request.is_json or request.headers.get('Content-Type') == 'application/json':
-            doctor_info = {
-                'firstName': 'API',
-                'lastName1': 'Doctor',
-                'speciality': 'Medicina General'
-            }
-            sessionID = 'api_user'
+        return _get_supabase_doctor_info()
     
-    return doctor_info, sessionID
+    if 'cedula' in session and has_database:
+        return _get_local_doctor_info()
+    
+    if _is_api_request():
+        return _get_api_doctor_info()
+    
+    return None, None
+
+
+# =============================================================================
+# HELPER FUNCTIONS FOR REDUCING COGNITIVE COMPLEXITY
+# =============================================================================
+
+def _check_auth_and_redirect():
+    """
+    Check authentication and return appropriate response if not authenticated.
+    Returns None if authenticated, otherwise returns the appropriate response.
+    """
+    if is_authenticated():
+        return None
+    
+    if request.is_json:
+        return jsonify({'success': False, 'error': 'Sesión no válida'}), 401
+    flash('Sesión no válida', 'error')
+    return redirect(url_for('clinic.index'))
+
+
+def _get_request_data():
+    """Get data from request, handling both JSON and form data."""
+    if request.is_json:
+        return request.get_json()
+    return request.form.to_dict()
+
+
+def _get_field_from_request(field_name, default=None):
+    """Get a specific field from request data."""
+    if request.is_json:
+        data = request.get_json()
+        return data.get(field_name, default)
+    return request.form.get(field_name, default)
+
+
+def _json_success_response(message, data=None, status=200):
+    """Create a JSON success response."""
+    response = {'success': True, 'message': message}
+    if data is not None:
+        response['data'] = data
+    return jsonify(response), status
+
+
+def _json_error_response(error, status=400):
+    """Create a JSON error response."""
+    return jsonify({'success': False, 'error': error}), status
+
+
+def _handle_success(message, flash_suffix='', redirect_url=None, data=None):
+    """Handle successful operation for both JSON and form requests."""
+    if request.is_json:
+        return _json_success_response(message, data)
+    flash(message + flash_suffix, 'success')
+    if redirect_url:
+        return redirect(redirect_url)
+    return None
+
+
+def _handle_error(error_msg, redirect_url=None, status=500, log_msg=None):
+    """Handle error for both JSON and form requests."""
+    if log_msg:
+        logger.error(log_msg)
+    else:
+        logger.error(error_msg)
+    if request.is_json:
+        return _json_error_response(error_msg, status)
+    flash(error_msg, 'error')
+    if redirect_url:
+        return redirect(redirect_url)
+    return None
+
+
+def _add_item_to_list(item_list, item_data, item_name, success_msg, exists_msg):
+    """Generic function to add an item to a temporary list."""
+    if item_data not in item_list:
+        item_list.append(item_data)
+        return success_msg, True
+    return exists_msg, False
+
+
+def _remove_item_from_list(item_list, item_id=None, index=None):
+    """
+    Generic function to remove an item from a temporary list.
+    Returns (removed_item, success).
+    """
+    # Try removing by ID first
+    if item_id is not None:
+        try:
+            idx = int(item_id)
+            if 0 <= idx < len(item_list):
+                return item_list.pop(idx), True
+        except (ValueError, IndexError):
+            pass
+    
+    # Try removing by index
+    if index is not None:
+        try:
+            idx = int(index) if isinstance(index, str) else index
+            if 0 <= idx < len(item_list):
+                return item_list.pop(idx), True
+        except (ValueError, IndexError):
+            pass
+    
+    return None, False
+
+
+def _get_value_or_none(data, key):
+    """Get value from dict, return None if empty or not present."""
+    value = data.get(key)
+    return value if value else None
+
+
+def _parse_vital_signs(data):
+    """Parse vital signs data from request."""
+    fields = ['weight', 'height', 'temperature', 'bloodPressure', 'heartRate',
+              'oxygenSaturation', 'breathingFrequency', 'glucose', 'hemoglobin']
+    return {field: _get_value_or_none(data, field) for field in fields}
+
+
+def _validate_attention_prerequisites(redirect_url):
+    """Validate that all prerequisites for completing attention are met."""
+    if not selected_patient_id:
+        return _handle_error(
+            'Debe seleccionar un paciente antes de finalizar la atención',
+            'No selected patient ID', redirect_url, 400
+        )
+    
+    if not evaluation_data.get('reasonConsultation') or not evaluation_data.get('currentIllness'):
+        return _handle_error(
+            'Debe completar la evaluación inicial (motivo de consulta y enfermedad actual) antes de finalizar',
+            'Missing reasonConsultation or currentIllness', redirect_url, 400
+        )
+    
+    if not evaluation_data.get('evolution'):
+        return _handle_error(
+            'Debe completar la evolución del paciente antes de finalizar',
+            'Missing evolution', redirect_url, 400
+        )
+    
+    return None
+
+
+def _get_or_create_doctor(session_id):
+    """Get doctor by session ID or create/find an API doctor."""
+    doctor = None
+    
+    if session_id and session_id != 'api_user':
+        doctor = Doctor.query.filter_by(identifierCode=session_id, is_deleted=False).first()
+        if doctor:
+            return doctor, None
+    
+    if not (request.is_json or session.get('auth_provider') == 'supabase'):
+        return None, 'Doctor no encontrado'
+    
+    doctor = Doctor.query.filter_by(identifierCode='API001', is_deleted=False).first()
+    if doctor:
+        return doctor, None
+    
+    doctor = Doctor.query.filter_by(is_deleted=False).first()
+    if doctor:
+        return doctor, None
+    
+    return _create_api_doctor()
+
+
+def _create_api_doctor():
+    """Create a new API doctor record."""
+    doctor = Doctor(
+        identifierCode='API001',
+        firstName='API',
+        lastName1='Doctor',
+        lastName2='',
+        email='api@medsc.com',
+        phone='000-000-0000',
+        address='Virtual',
+        birthDate=datetime(1990, 1, 1).date(),
+        gender='Otro',
+        speciality='Medicina General',
+        created_by='system',
+        updated_by='system'
+    )
+    try:
+        db.session.add(doctor)
+        db.session.commit()
+        logger.info("API doctor created successfully")
+        return doctor, None
+    except Exception as e:
+        logger.error(f"Error creating API doctor: {str(e)}")
+        db.session.rollback()
+        fallback = Doctor.query.filter_by(is_deleted=False).first()
+        if fallback:
+            return fallback, None
+        return None, 'Error al crear doctor API y no hay doctores disponibles'
+
+
+def _create_attention_record(patient, doctor, session_id):
+    """Create the main attention record."""
+    return Attention(
+        date=datetime.now(),
+        weight=float(vital_signs_data.get('weight')) if vital_signs_data.get('weight') else None,
+        height=float(vital_signs_data.get('height')) if vital_signs_data.get('height') else None,
+        temperature=float(vital_signs_data.get('temperature')) if vital_signs_data.get('temperature') else None,
+        bloodPressure=vital_signs_data.get('bloodPressure'),
+        heartRate=int(vital_signs_data.get('heartRate')) if vital_signs_data.get('heartRate') else None,
+        oxygenSaturation=int(vital_signs_data.get('oxygenSaturation')) if vital_signs_data.get('oxygenSaturation') else None,
+        breathingFrequency=int(vital_signs_data.get('breathingFrequency')) if vital_signs_data.get('breathingFrequency') else None,
+        glucose=float(vital_signs_data.get('glucose')) if vital_signs_data.get('glucose') else None,
+        hemoglobin=float(vital_signs_data.get('hemoglobin')) if vital_signs_data.get('hemoglobin') else None,
+        reasonConsultation=evaluation_data['reasonConsultation'],
+        currentIllness=evaluation_data['currentIllness'],
+        evolution=evaluation_data['evolution'],
+        idPatient=patient.id,
+        idDoctor=doctor.id,
+        created_by=session_id,
+        updated_by=session_id
+    )
+
+
+def _build_attention_success_response(patient, doctor, attention):
+    """Build success response for completed attention."""
+    success_msg = f'Atención registrada exitosamente para {patient.firstName} {patient.lastName1}'
+    
+    if request.is_json:
+        return jsonify({
+            'success': True,
+            'message': success_msg,
+            'data': {
+                'attention_id': attention.id,
+                'patient': {'id': patient.id, 'name': f"{patient.firstName} {patient.lastName1}"},
+                'doctor': {'id': doctor.id, 'name': f"Dr. {doctor.firstName} {doctor.lastName1}"},
+                'date': attention.date.isoformat()
+            }
+        })
+    
+    flash(success_msg, 'success')
+    return redirect(url_for('clinic.home'))
 
 # Global lists for temporary storage during attention creation
 vital_signs_data = {}
@@ -121,52 +372,31 @@ def add_vital_signs():
     """Save vital signs data temporarily - API compatible version"""
     global vital_signs_data
     
-    # Check authentication
-    if not is_authenticated():
-        if request.is_json:
-            return jsonify({'success': False, 'error': 'Sesión no válida'}), 401
-        flash('Sesión no válida', 'error')
-        return redirect(url_for('clinic.index'))
+    auth_response = _check_auth_and_redirect()
+    if auth_response:
+        return auth_response
+    
+    redirect_url = url_for('clinic.home', view='addAttention', step='evaluacion')
     
     try:
-        # Handle both form data and JSON
-        if request.is_json:
-            data = request.get_json()
-        else:
-            data = request.form.to_dict()
-        
-        # Store vital signs data temporarily (these will be part of the Attention record)
-        vital_signs_data = {
-            'weight': data.get('weight') if data.get('weight') else None,
-            'height': data.get('height') if data.get('height') else None,
-            'temperature': data.get('temperature') if data.get('temperature') else None,
-            'bloodPressure': data.get('bloodPressure') if data.get('bloodPressure') else None,
-            'heartRate': data.get('heartRate') if data.get('heartRate') else None,
-            'oxygenSaturation': data.get('oxygenSaturation') if data.get('oxygenSaturation') else None,
-            'breathingFrequency': data.get('breathingFrequency') if data.get('breathingFrequency') else None,
-            'glucose': data.get('glucose') if data.get('glucose') else None,
-            'hemoglobin': data.get('hemoglobin') if data.get('hemoglobin') else None
-        }
+        data = _get_request_data()
+        vital_signs_data = _parse_vital_signs(data)
         
         success_msg = 'Signos vitales guardados exitosamente.'
         logger.info("Vital signs data saved temporarily")
         
         if request.is_json:
-            return jsonify({
-                'success': True,
-                'message': success_msg,
-                'data': vital_signs_data
-            })
+            return _json_success_response(success_msg, vital_signs_data)
         
         flash(success_msg + ' Proceda con la evaluación inicial.', 'success')
         
     except Exception as e:
         logger.error(f"Error saving vital signs: {str(e)}")
         if request.is_json:
-            return jsonify({'success': False, 'error': 'Error al guardar signos vitales'}), 500
+            return _json_error_response('Error al guardar signos vitales', 500)
         flash('Error al guardar signos vitales', 'error')
     
-    return redirect(url_for('clinic.home', view='addAttention', step='evaluacion'))
+    return redirect(redirect_url)
 
 @attention.route('/add-initial-evaluation', methods=['POST'])
 def add_initial_evaluation():
@@ -232,231 +462,148 @@ def add_physical_exam():
     """Add physical examination to temporary list - API compatible version"""
     global physical_exams
     
-    # Check authentication
-    if not is_authenticated():
-        if request.is_json:
-            return jsonify({'success': False, 'error': 'Sesión no válida'}), 401
-        flash('Sesión no válida', 'error')
-        return redirect(url_for('clinic.index'))
+    auth_response = _check_auth_and_redirect()
+    if auth_response:
+        return auth_response
+    
+    redirect_url = url_for('clinic.home', view='addAttention', step='examen')
     
     try:
-        # Handle both form data and JSON
-        if request.is_json:
-            data = request.get_json()
-            type_examination = data.get('typeExamination')
-            examination = data.get('examination')
-        else:
-            type_examination = request.form.get('typeExamination')
-            examination = request.form.get('examination')
+        data = _get_request_data()
+        type_examination = data.get('typeExamination')
+        examination = data.get('examination')
         
         if not type_examination or not examination:
             error_msg = 'Tipo de examen y hallazgos son requeridos'
             if request.is_json:
-                return jsonify({'success': False, 'error': error_msg}), 400
+                return _json_error_response(error_msg, 400)
             flash(error_msg, 'error')
-            return redirect(url_for('clinic.home', view='addAttention', step='examen'))
+            return redirect(redirect_url)
         
         exam_data = {
             'typeExamination': type_examination.strip(),
             'examination': examination.strip()
         }
         
-        if exam_data not in physical_exams:
-            physical_exams.append(exam_data)
-            success_msg = 'Examen físico agregado exitosamente'
+        success_msg, is_new = _add_item_to_list(
+            physical_exams, exam_data, 'examen físico',
+            'Examen físico agregado exitosamente', 'Este examen ya existe'
+        )
+        
+        if is_new:
             logger.info(f"Physical exam added: {type_examination}")
-        else:
-            success_msg = 'Este examen ya existe'
         
         if request.is_json:
-            return jsonify({
-                'success': True,
-                'message': success_msg,
-                'data': {
-                    'exam': exam_data,
-                    'total_exams': len(physical_exams)
-                }
-            })
+            return _json_success_response(success_msg, {'exam': exam_data, 'total_exams': len(physical_exams)})
         
-        flash(success_msg, 'success' if exam_data not in physical_exams[:-1] else 'warning')
+        flash(success_msg, 'success' if is_new else 'warning')
         
     except Exception as e:
         logger.error(f"Error adding physical exam: {str(e)}")
         if request.is_json:
-            return jsonify({'success': False, 'error': 'Error al agregar examen físico'}), 500
+            return _json_error_response('Error al agregar examen físico', 500)
         flash('Error al agregar examen físico', 'error')
     
-    return redirect(url_for('clinic.home', view='addAttention', step='examen'))
+    return redirect(redirect_url)
 
 @attention.route('/remove-physical-exam', methods=['POST'])
 def remove_physical_exam():
     """Remove physical examination from temporary list - API compatible version"""
     global physical_exams
     
+    redirect_url = url_for('clinic.home', view='addAttention', step='examen')
+    
     try:
-        # Handle both form data and JSON
-        if request.is_json:
-            data = request.get_json()
-            exam_id = data.get('exam_id')  # For API, we can use exam_id
-            index = data.get('index', -1)
-        else:
-            exam_id = request.form.get('exam_id')
-            index = int(request.form.get('index', -1))
+        data = _get_request_data()
+        exam_id = data.get('exam_id')
+        index = data.get('index', -1)
         
-        removed = False
-        if exam_id is not None:
-            # Remove by exam_id (for API calls)
-            try:
-                exam_id = int(exam_id)
-                if 0 <= exam_id < len(physical_exams):
-                    removed_item = physical_exams.pop(exam_id)
-                    removed = True
-            except (ValueError, IndexError):
-                pass
-        elif 0 <= index < len(physical_exams):
-            # Remove by index (backward compatibility)
-            removed_item = physical_exams.pop(index)
-            removed = True
+        _, removed = _remove_item_from_list(physical_exams, exam_id, index)
         
         if removed:
-            success_msg = 'Examen físico eliminado exitosamente'
             if request.is_json:
-                return jsonify({
-                    'success': True,
-                    'message': success_msg,
-                    'data': {'total_exams': len(physical_exams)}
-                })
-            flash(success_msg, 'success')
+                return _json_success_response('Examen físico eliminado exitosamente', {'total_exams': len(physical_exams)})
+            flash('Examen físico eliminado exitosamente', 'success')
         else:
-            error_msg = 'Examen no encontrado'
             if request.is_json:
-                return jsonify({'success': False, 'error': error_msg}), 404
-            flash(error_msg, 'error')
+                return _json_error_response('Examen no encontrado', 404)
+            flash('Examen no encontrado', 'error')
             
     except Exception as e:
         logger.error(f"Error removing physical exam: {str(e)}")
         if request.is_json:
-            return jsonify({'success': False, 'error': 'Error al eliminar examen'}), 500
+            return _json_error_response('Error al eliminar examen', 500)
         flash('Error al eliminar examen', 'error')
     
-    return redirect(url_for('clinic.home', view='addAttention', step='examen'))
+    return redirect(redirect_url)
 
 @attention.route('/add-organ-system-review', methods=['POST', 'OPTIONS'])
 def add_organ_system_review():
     """Add organ system review to temporary list - API compatible version"""
     global organ_system_reviews
     
-    # Handle preflight OPTIONS request
     cors_response = handle_cors_preflight()
     if cors_response:
         return cors_response
     
-    # Check authentication
-    if not is_authenticated():
-        if request.is_json:
-            return jsonify({'success': False, 'error': 'Sesión no válida'}), 401
-        flash('Sesión no válida', 'error')
-        return redirect(url_for('clinic.index'))
+    auth_response = _check_auth_and_redirect()
+    if auth_response:
+        return auth_response
+    
+    redirect_url = url_for('clinic.home', view='addAttention', step='revision')
     
     try:
-        # Handle both form data and JSON
-        if request.is_json:
-            data = request.get_json()
-            type_review = data.get('typeReview')
-            review = data.get('review')
-        else:
-            type_review = request.form.get('typeReview')
-            review = request.form.get('review')
+        data = _get_request_data()
+        type_review = data.get('typeReview')
+        review = data.get('review')
         
         if not type_review or not review:
             error_msg = 'Tipo de revisión y hallazgos son requeridos'
             if request.is_json:
-                return jsonify({'success': False, 'error': error_msg}), 400
+                return _json_error_response(error_msg, 400)
             flash(error_msg, 'error')
-            return redirect(url_for('clinic.home', view='addAttention', step='revision'))
+            return redirect(redirect_url)
         
         review_data = {
             'typeReview': type_review.strip(),
             'review': review.strip()
         }
         
-        if review_data not in organ_system_reviews:
-            organ_system_reviews.append(review_data)
-            success_msg = 'Revisión de sistema agregada'
-        else:
-            success_msg = 'Esta revisión ya existe'
+        success_msg, is_new = _add_item_to_list(
+            organ_system_reviews, review_data, 'revisión',
+            'Revisión de sistema agregada', 'Esta revisión ya existe'
+        )
         
         logger.info(f"Organ system review added: {type_review}")
         
         if request.is_json:
-            return jsonify({
-                'success': True,
-                'message': success_msg,
-                'data': review_data
-            })
+            return _json_success_response(success_msg, review_data)
         
-        flash(success_msg, 'success' if review_data not in organ_system_reviews[:-1] else 'warning')
+        flash(success_msg, 'success' if is_new else 'warning')
         
     except Exception as e:
         logger.error(f"Error adding organ system review: {str(e)}")
         if request.is_json:
-            return jsonify({'success': False, 'error': 'Error al agregar revisión de sistema'}), 500
+            return _json_error_response('Error al agregar revisión de sistema', 500)
         flash('Error al agregar revisión de sistema', 'error')
     
-    return redirect(url_for('clinic.home', view='addAttention', step='revision'))
+    return redirect(redirect_url)
 
 @attention.route('/remove-organ-system-review', methods=['POST', 'OPTIONS'])
 def remove_organ_system_review():
     """Remove organ system review from temporary list - API compatible version"""
     global organ_system_reviews
     
-    # Handle preflight OPTIONS request
     cors_response = handle_cors_preflight()
     if cors_response:
         return cors_response
 
-    try:
-        # Handle both form data and JSON
-        if request.is_json:
-            data = request.get_json()
-            index = data.get('index')
-            review_id = data.get('review_id')
-        else:
-            index = request.form.get('index', -1)
-            review_id = request.form.get('review_id')
-        
-        removed = False
-        if review_id is not None:
-            # Remove by review_id (exact match)
-            for i, review in enumerate(organ_system_reviews):
-                if review.get('id') == review_id or i == int(review_id):
-                    organ_system_reviews.pop(i)
-                    removed = True
-                    break
-        elif index and str(index).isdigit():
-            index = int(index)
-            if 0 <= index < len(organ_system_reviews):
-                organ_system_reviews.pop(index)
-                removed = True
-        
-        if removed:
-            success_msg = 'Revisión de sistema eliminada'
-            if request.is_json:
-                return jsonify({'success': True, 'message': success_msg})
-            flash(success_msg, 'success')
-        else:
-            error_msg = 'Revisión no encontrada'
-            if request.is_json:
-                return jsonify({'success': False, 'error': error_msg}), 404
-            flash(error_msg, 'error')
-            
-    except Exception as e:
-        logger.error(f"Error removing organ system review: {str(e)}")
-        if request.is_json:
-            return jsonify({'success': False, 'error': 'Error al eliminar revisión'}), 500
-        flash('Error al eliminar revisión', 'error')
-    
-    return redirect(url_for('clinic.home', view='addAttention', step='revision'))
+    redirect_url = url_for('clinic.home', view='addAttention', step='revision')
+    return _remove_item_from_list(
+        organ_system_reviews, redirect_url,
+        'Revisión de sistema eliminada', 'Revisión no encontrada',
+        'Error al eliminar revisión'
+    )
 
 @attention.route('/add-diagnostic', methods=['POST'])
 def add_diagnostic():
@@ -551,44 +698,32 @@ def add_treatment():
     """Add treatment to temporary list - API compatible version"""
     global treatments
     
-    # Handle preflight OPTIONS request
     cors_response = handle_cors_preflight()
     if cors_response:
         return cors_response
     
-    # Check authentication
-    if not is_authenticated():
-        if request.is_json:
-            return jsonify({'success': False, 'error': 'Sesión no válida'}), 401
-        flash('Sesión no válida', 'error')
-        return redirect(url_for('clinic.index'))
+    auth_response = _check_auth_and_redirect()
+    if auth_response:
+        return auth_response
+    
+    redirect_url = url_for('clinic.home', view='addAttention', step='tratamiento')
     
     try:
-        # Handle both form data and JSON
-        if request.is_json:
-            data = request.get_json()
-            medicament = data.get('medicament')
-            via = data.get('via')
-            dosage = data.get('dosage')
-            unity = data.get('unity')
-            frequency = data.get('frequency')
-            indications = data.get('indications')
-            warning = data.get('warning')
-        else:
-            medicament = request.form.get('medicament')
-            via = request.form.get('via')
-            dosage = request.form.get('dosage')
-            unity = request.form.get('unity')
-            frequency = request.form.get('frequency')
-            indications = request.form.get('indications')
-            warning = request.form.get('warning')
+        data = _get_request_data()
+        medicament = data.get('medicament')
+        via = data.get('via')
+        dosage = data.get('dosage')
+        unity = data.get('unity')
+        frequency = data.get('frequency')
+        indications = data.get('indications')
+        warning = data.get('warning')
         
         if not all([medicament, via, dosage, unity, frequency, indications]):
             error_msg = 'Todos los campos requeridos del tratamiento deben completarse'
             if request.is_json:
-                return jsonify({'success': False, 'error': error_msg}), 400
+                return _json_error_response(error_msg, 400)
             flash(error_msg, 'error')
-            return redirect(url_for('clinic.home', view='addAttention', step='tratamiento'))
+            return redirect(redirect_url)
         
         treatment_data = {
             'medicament': medicament.strip(),
@@ -600,431 +735,241 @@ def add_treatment():
             'warning': warning.strip() if warning else None
         }
         
-        if treatment_data not in treatments:
-            treatments.append(treatment_data)
-            success_msg = 'Tratamiento agregado'
-        else:
-            success_msg = 'Este tratamiento ya existe'
+        success_msg, is_new = _add_item_to_list(
+            treatments, treatment_data, 'tratamiento',
+            'Tratamiento agregado', 'Este tratamiento ya existe'
+        )
         
         logger.info(f"Treatment added: {medicament}")
         
         if request.is_json:
-            return jsonify({
-                'success': True,
-                'message': success_msg,
-                'data': treatment_data
-            })
+            return _json_success_response(success_msg, treatment_data)
         
-        flash(success_msg, 'success' if treatment_data not in treatments[:-1] else 'warning')
+        flash(success_msg, 'success' if is_new else 'warning')
         
     except Exception as e:
         logger.error(f"Error adding treatment: {str(e)}")
         if request.is_json:
-            return jsonify({'success': False, 'error': 'Error al agregar tratamiento'}), 500
+            return _json_error_response('Error al agregar tratamiento', 500)
         flash('Error al agregar tratamiento', 'error')
     
-    return redirect(url_for('clinic.home', view='addAttention', step='tratamiento'))
+    return redirect(redirect_url)
 
 @attention.route('/remove-treatment', methods=['POST', 'OPTIONS'])
 def remove_treatment():
     """Remove treatment from temporary list - API compatible version"""
     global treatments
     
-    # Handle preflight OPTIONS request
     cors_response = handle_cors_preflight()
     if cors_response:
         return cors_response
 
-    try:
-        # Handle both form data and JSON
-        if request.is_json:
-            data = request.get_json()
-            index = data.get('index')
-            treatment_id = data.get('treatment_id')
-        else:
-            index = request.form.get('index', -1)
-            treatment_id = request.form.get('treatment_id')
-        
-        removed = False
-        if treatment_id is not None:
-            # Remove by treatment_id (exact match)
-            for i, treatment in enumerate(treatments):
-                if treatment.get('id') == treatment_id or i == int(treatment_id):
-                    treatments.pop(i)
-                    removed = True
-                    break
-        elif index and str(index).isdigit():
-            index = int(index)
-            if 0 <= index < len(treatments):
-                treatments.pop(index)
-                removed = True
-        
-        if removed:
-            success_msg = 'Tratamiento eliminado'
-            if request.is_json:
-                return jsonify({'success': True, 'message': success_msg})
-            flash(success_msg, 'success')
-        else:
-            error_msg = 'Tratamiento no encontrado'
-            if request.is_json:
-                return jsonify({'success': False, 'error': error_msg}), 404
-            flash(error_msg, 'error')
-            
-    except Exception as e:
-        logger.error(f"Error removing treatment: {str(e)}")
-        if request.is_json:
-            return jsonify({'success': False, 'error': 'Error al eliminar tratamiento'}), 500
-        flash('Error al eliminar tratamiento', 'error')
-    
-    return redirect(url_for('clinic.home', view='addAttention', step='tratamiento'))
+    redirect_url = url_for('clinic.home', view='addAttention', step='tratamiento')
+    return _remove_item_from_list(
+        treatments, redirect_url,
+        'Tratamiento eliminado', 'Tratamiento no encontrado',
+        'Error al eliminar tratamiento'
+    )
 
 @attention.route('/add-histopathology', methods=['POST', 'OPTIONS'])
 def add_histopathology():
     """Add histopathology to temporary list - API compatible version"""
     global histopathologies
     
-    # Handle preflight OPTIONS request
     cors_response = handle_cors_preflight()
     if cors_response:
         return cors_response
     
-    # Check authentication
-    if not is_authenticated():
-        if request.is_json:
-            return jsonify({'success': False, 'error': 'Sesión no válida'}), 401
-        flash('Sesión no válida', 'error')
-        return redirect(url_for('clinic.index'))
+    auth_response = _check_auth_and_redirect()
+    if auth_response:
+        return auth_response
+    
+    redirect_url = url_for('clinic.home', view='addAttention', step='examenes')
     
     try:
-        # Handle both form data and JSON
-        if request.is_json:
-            data = request.get_json()
-            histopathology = data.get('histopathology')
-        else:
-            histopathology = request.form.get('histopathology')
+        data = _get_request_data()
+        histopathology = data.get('histopathology')
         
         if not histopathology or not histopathology.strip():
             error_msg = 'El resultado histopatológico es requerido'
             if request.is_json:
-                return jsonify({'success': False, 'error': error_msg}), 400
+                return _json_error_response(error_msg, 400)
             flash(error_msg, 'error')
-            return redirect(url_for('clinic.home', view='addAttention', step='examenes'))
+            return redirect(redirect_url)
         
-        histo_data = {
-            'histopathology': histopathology.strip()
-        }
+        histo_data = {'histopathology': histopathology.strip()}
         
-        if histo_data not in histopathologies:
-            histopathologies.append(histo_data)
-            success_msg = 'Histopatología agregada'
-        else:
-            success_msg = 'Esta histopatología ya existe'
+        success_msg, is_new = _add_item_to_list(
+            histopathologies, histo_data, 'histopatología',
+            'Histopatología agregada', 'Esta histopatología ya existe'
+        )
         
         logger.info("Histopathology added")
         
         if request.is_json:
-            return jsonify({
-                'success': True,
-                'message': success_msg,
-                'data': histo_data
-            })
+            return _json_success_response(success_msg, histo_data)
         
-        flash(success_msg, 'success' if histo_data not in histopathologies[:-1] else 'warning')
+        flash(success_msg, 'success' if is_new else 'warning')
         
     except Exception as e:
         logger.error(f"Error adding histopathology: {str(e)}")
         if request.is_json:
-            return jsonify({'success': False, 'error': 'Error al agregar histopatología'}), 500
+            return _json_error_response('Error al agregar histopatología', 500)
         flash('Error al agregar histopatología', 'error')
     
-    return redirect(url_for('clinic.home', view='addAttention', step='examenes'))
+    return redirect(redirect_url)
 
 @attention.route('/remove-histopathology', methods=['POST', 'OPTIONS'])
 def remove_histopathology():
     """Remove histopathology from temporary list - API compatible version"""
     global histopathologies
     
-    # Handle preflight OPTIONS request
     cors_response = handle_cors_preflight()
     if cors_response:
         return cors_response
 
-    try:
-        # Handle both form data and JSON
-        if request.is_json:
-            data = request.get_json()
-            index = data.get('index')
-            histo_id = data.get('histo_id')
-        else:
-            index = request.form.get('index', -1)
-            histo_id = request.form.get('histo_id')
-        
-        removed = False
-        if histo_id is not None:
-            # Remove by histo_id (exact match)
-            for i, histo in enumerate(histopathologies):
-                if histo.get('id') == histo_id or i == int(histo_id):
-                    histopathologies.pop(i)
-                    removed = True
-                    break
-        elif index and str(index).isdigit():
-            index = int(index)
-            if 0 <= index < len(histopathologies):
-                histopathologies.pop(index)
-                removed = True
-        
-        if removed:
-            success_msg = 'Histopatología eliminada'
-            if request.is_json:
-                return jsonify({'success': True, 'message': success_msg})
-            flash(success_msg, 'success')
-        else:
-            error_msg = 'Histopatología no encontrada'
-            if request.is_json:
-                return jsonify({'success': False, 'error': error_msg}), 404
-            flash(error_msg, 'error')
-            
-    except Exception as e:
-        logger.error(f"Error removing histopathology: {str(e)}")
-        if request.is_json:
-            return jsonify({'success': False, 'error': 'Error al eliminar histopatología'}), 500
-        flash('Error al eliminar histopatología', 'error')
-    
-    return redirect(url_for('clinic.home', view='addAttention', step='examenes'))
+    redirect_url = url_for('clinic.home', view='addAttention', step='examenes')
+    return _remove_item_from_list(
+        histopathologies, redirect_url,
+        'Histopatología eliminada', 'Histopatología no encontrada',
+        'Error al eliminar histopatología'
+    )
 
 @attention.route('/add-imaging', methods=['POST', 'OPTIONS'])
 def add_imaging():
     """Add imaging to temporary list - API compatible version"""
     global imagings
     
-    # Handle preflight OPTIONS request
     cors_response = handle_cors_preflight()
     if cors_response:
         return cors_response
     
-    # Check authentication
-    if not is_authenticated():
-        if request.is_json:
-            return jsonify({'success': False, 'error': 'Sesión no válida'}), 401
-        flash('Sesión no válida', 'error')
-        return redirect(url_for('clinic.index'))
+    auth_response = _check_auth_and_redirect()
+    if auth_response:
+        return auth_response
+    
+    redirect_url = url_for('clinic.home', view='addAttention', step='examenes')
     
     try:
-        # Handle both form data and JSON
-        if request.is_json:
-            data = request.get_json()
-            type_imaging = data.get('typeImaging')
-            imaging = data.get('imaging')
-        else:
-            type_imaging = request.form.get('typeImaging')
-            imaging = request.form.get('imaging')
+        data = _get_request_data()
+        type_imaging = data.get('typeImaging')
+        imaging = data.get('imaging')
         
         if not type_imaging or not imaging:
             error_msg = 'Tipo de imagen y resultado son requeridos'
             if request.is_json:
-                return jsonify({'success': False, 'error': error_msg}), 400
+                return _json_error_response(error_msg, 400)
             flash(error_msg, 'error')
-            return redirect(url_for('clinic.home', view='addAttention', step='examenes'))
+            return redirect(redirect_url)
         
         imaging_data = {
             'typeImaging': type_imaging.strip(),
             'imaging': imaging.strip()
         }
         
-        if imaging_data not in imagings:
-            imagings.append(imaging_data)
-            success_msg = 'Imagen agregada'
-        else:
-            success_msg = 'Esta imagen ya existe'
+        success_msg, is_new = _add_item_to_list(
+            imagings, imaging_data, 'imagen',
+            'Imagen agregada', 'Esta imagen ya existe'
+        )
         
         logger.info(f"Imaging added: {type_imaging}")
         
         if request.is_json:
-            return jsonify({
-                'success': True,
-                'message': success_msg,
-                'data': imaging_data
-            })
+            return _json_success_response(success_msg, imaging_data)
         
-        flash(success_msg, 'success' if imaging_data not in imagings[:-1] else 'warning')
+        flash(success_msg, 'success' if is_new else 'warning')
         
     except Exception as e:
         logger.error(f"Error adding imaging: {str(e)}")
         if request.is_json:
-            return jsonify({'success': False, 'error': 'Error al agregar imagen'}), 500
+            return _json_error_response('Error al agregar imagen', 500)
         flash('Error al agregar imagen', 'error')
     
-    return redirect(url_for('clinic.home', view='addAttention', step='examenes'))
+    return redirect(redirect_url)
 
 @attention.route('/remove-imaging', methods=['POST', 'OPTIONS'])
 def remove_imaging():
     """Remove imaging from temporary list - API compatible version"""
     global imagings
     
-    # Handle preflight OPTIONS request
     cors_response = handle_cors_preflight()
     if cors_response:
         return cors_response
 
-    try:
-        # Handle both form data and JSON
-        if request.is_json:
-            data = request.get_json()
-            index = data.get('index')
-            imaging_id = data.get('imaging_id')
-        else:
-            index = request.form.get('index', -1)
-            imaging_id = request.form.get('imaging_id')
-        
-        removed = False
-        if imaging_id is not None:
-            # Remove by imaging_id (exact match)
-            for i, imaging in enumerate(imagings):
-                if imaging.get('id') == imaging_id or i == int(imaging_id):
-                    imagings.pop(i)
-                    removed = True
-                    break
-        elif index and str(index).isdigit():
-            index = int(index)
-            if 0 <= index < len(imagings):
-                imagings.pop(index)
-                removed = True
-        
-        if removed:
-            success_msg = 'Imagen eliminada'
-            if request.is_json:
-                return jsonify({'success': True, 'message': success_msg})
-            flash(success_msg, 'success')
-        else:
-            error_msg = 'Imagen no encontrada'
-            if request.is_json:
-                return jsonify({'success': False, 'error': error_msg}), 404
-            flash(error_msg, 'error')
-            
-    except Exception as e:
-        logger.error(f"Error removing imaging: {str(e)}")
-        if request.is_json:
-            return jsonify({'success': False, 'error': 'Error al eliminar imagen'}), 500
-        flash('Error al eliminar imagen', 'error')
-    
-    return redirect(url_for('clinic.home', view='addAttention', step='examenes'))
+    redirect_url = url_for('clinic.home', view='addAttention', step='examenes')
+    return _remove_item_from_list(
+        imagings, redirect_url,
+        'Imagen eliminada', 'Imagen no encontrada',
+        'Error al eliminar imagen'
+    )
 
 @attention.route('/add-laboratory', methods=['POST', 'OPTIONS'])
 def add_laboratory():
     """Add laboratory to temporary list - API compatible version"""
     global laboratories
     
-    # Handle preflight OPTIONS request
     cors_response = handle_cors_preflight()
     if cors_response:
         return cors_response
     
-    # Check authentication
-    if not is_authenticated():
-        if request.is_json:
-            return jsonify({'success': False, 'error': 'Sesión no válida'}), 401
-        flash('Sesión no válida', 'error')
-        return redirect(url_for('clinic.index'))
+    auth_response = _check_auth_and_redirect()
+    if auth_response:
+        return auth_response
+    
+    redirect_url = url_for('clinic.home', view='addAttention', step='examenes')
     
     try:
-        # Handle both form data and JSON
-        if request.is_json:
-            data = request.get_json()
-            type_exam = data.get('typeExam')
-            exam = data.get('exam')
-        else:
-            type_exam = request.form.get('typeExam')
-            exam = request.form.get('exam')
+        data = _get_request_data()
+        type_exam = data.get('typeExam')
+        exam = data.get('exam')
         
         if not type_exam or not exam:
             error_msg = 'Tipo de examen y resultado son requeridos'
             if request.is_json:
-                return jsonify({'success': False, 'error': error_msg}), 400
+                return _json_error_response(error_msg, 400)
             flash(error_msg, 'error')
-            return redirect(url_for('clinic.home', view='addAttention', step='examenes'))
+            return redirect(redirect_url)
         
         lab_data = {
             'typeExam': type_exam.strip(),
             'exam': exam.strip()
         }
         
-        if lab_data not in laboratories:
-            laboratories.append(lab_data)
-            success_msg = 'Laboratorio agregado'
-        else:
-            success_msg = 'Este laboratorio ya existe'
+        success_msg, is_new = _add_item_to_list(
+            laboratories, lab_data, 'laboratorio',
+            'Laboratorio agregado', 'Este laboratorio ya existe'
+        )
         
         logger.info(f"Laboratory added: {type_exam}")
         
         if request.is_json:
-            return jsonify({
-                'success': True,
-                'message': success_msg,
-                'data': lab_data
-            })
+            return _json_success_response(success_msg, lab_data)
         
-        flash(success_msg, 'success' if lab_data not in laboratories[:-1] else 'warning')
+        flash(success_msg, 'success' if is_new else 'warning')
         
     except Exception as e:
         logger.error(f"Error adding laboratory: {str(e)}")
         if request.is_json:
-            return jsonify({'success': False, 'error': 'Error al agregar laboratorio'}), 500
+            return _json_error_response('Error al agregar laboratorio', 500)
         flash('Error al agregar laboratorio', 'error')
     
-    return redirect(url_for('clinic.home', view='addAttention', step='examenes'))
+    return redirect(redirect_url)
 
 @attention.route('/remove-laboratory', methods=['POST', 'OPTIONS'])
 def remove_laboratory():
     """Remove laboratory from temporary list - API compatible version"""
     global laboratories
     
-    # Handle preflight OPTIONS request
     cors_response = handle_cors_preflight()
     if cors_response:
         return cors_response
 
-    try:
-        # Handle both form data and JSON
-        if request.is_json:
-            data = request.get_json()
-            index = data.get('index')
-            lab_id = data.get('lab_id')
-        else:
-            index = request.form.get('index', -1)
-            lab_id = request.form.get('lab_id')
-        
-        removed = False
-        if lab_id is not None:
-            # Remove by lab_id (exact match)
-            for i, lab in enumerate(laboratories):
-                if lab.get('id') == lab_id or i == int(lab_id):
-                    laboratories.pop(i)
-                    removed = True
-                    break
-        elif index and str(index).isdigit():
-            index = int(index)
-            if 0 <= index < len(laboratories):
-                laboratories.pop(index)
-                removed = True
-        
-        if removed:
-            success_msg = 'Laboratorio eliminado'
-            if request.is_json:
-                return jsonify({'success': True, 'message': success_msg})
-            flash(success_msg, 'success')
-        else:
-            error_msg = 'Laboratorio no encontrado'
-            if request.is_json:
-                return jsonify({'success': False, 'error': error_msg}), 404
-            flash(error_msg, 'error')
-            
-    except Exception as e:
-        logger.error(f"Error removing laboratory: {str(e)}")
-        if request.is_json:
-            return jsonify({'success': False, 'error': 'Error al eliminar laboratorio'}), 500
-        flash('Error al eliminar laboratorio', 'error')
-    
-    return redirect(url_for('clinic.home', view='addAttention', step='examenes'))
+    redirect_url = url_for('clinic.home', view='addAttention', step='examenes')
+    return _remove_item_from_list(
+        laboratories, redirect_url,
+        'Laboratorio eliminado', 'Laboratorio no encontrado',
+        'Error al eliminar laboratorio'
+    )
 
 @attention.route('/continue-to-organ-systems', methods=['POST'])
 def continue_to_organ_systems():
@@ -1113,44 +1058,30 @@ def select_patient_for_attention():
     """Select patient for current attention - API compatible version"""
     global selected_patient_id
     
-    # Check authentication - compatible with both session and API
-    if not is_authenticated():
-        if request.is_json:
-            return jsonify({'success': False, 'error': 'Sesión no válida'}), 401
-        flash('Sesión no válida', 'error')
-        return redirect(url_for('clinic.index'))
+    auth_response = _check_auth_and_redirect()
+    if auth_response:
+        return auth_response
+    
+    redirect_url = url_for('clinic.home', view='addAttention')
     
     try:
-        # Handle both form data and JSON
-        if request.is_json:
-            data = request.get_json()
-            patient_id = data.get('patient_id')
-        else:
-            patient_id = request.form.get('selectedPatient') or request.form.get('preselect_patient')
+        data = _get_request_data()
+        patient_id = data.get('patient_id') or data.get('selectedPatient') or data.get('preselect_patient')
         
         if not patient_id:
-            if request.is_json:
-                return jsonify({'success': False, 'error': 'Debe seleccionar un paciente'}), 400
-            flash('Debe seleccionar un paciente', 'error')
-            return redirect(url_for('clinic.home', view='addAttention'))
+            return _handle_error('Debe seleccionar un paciente', redirect_url, 400)
         
-        # Validate that patient exists
         patient = Patient.query.filter_by(id=patient_id, is_deleted=False).first()
         if not patient:
-            if request.is_json:
-                return jsonify({'success': False, 'error': 'Paciente no encontrado'}), 404
-            flash('Paciente no encontrado', 'error')
-            return redirect(url_for('clinic.home', view='addAttention'))
+            return _handle_error('Paciente no encontrado', redirect_url, 404)
         
         selected_patient_id = int(patient_id)
-        
-        success_msg = f'Paciente {patient.firstName} {patient.lastName1} seleccionado.'
         logger.info(f"Patient {patient_id} selected for attention")
         
         if request.is_json:
             return jsonify({
                 'success': True, 
-                'message': success_msg,
+                'message': f'Paciente {patient.firstName} {patient.lastName1} seleccionado.',
                 'data': {
                     'patient_id': patient.id,
                     'patient_name': f"{patient.firstName} {patient.lastName1}",
@@ -1158,15 +1089,13 @@ def select_patient_for_attention():
                 }
             })
         
-        flash(success_msg + ' Puede proceder con los signos vitales.', 'success')
+        flash(f'Paciente {patient.firstName} {patient.lastName1} seleccionado. Puede proceder con los signos vitales.', 'success')
         
     except Exception as e:
         logger.error(f"Error selecting patient: {str(e)}")
-        if request.is_json:
-            return jsonify({'success': False, 'error': 'Error interno del servidor'}), 500
-        flash('Error al seleccionar paciente', 'error')
+        return _handle_error('Error al seleccionar paciente', redirect_url, 500)
     
-    return redirect(url_for('clinic.home', view='addAttention'))
+    return redirect(redirect_url)
 
 @attention.route('/change-selected-patient', methods=['POST'])
 def change_selected_patient():
@@ -1182,220 +1111,63 @@ def change_selected_patient():
 @attention.route('/complete-attention', methods=['POST'])
 def complete_attention():
     """Save all attention data to database - API compatible version"""
-    global vital_signs_data, evaluation_data, physical_exams, organ_system_reviews
-    global diagnostics, treatments, histopathologies, imagings, laboratories, current_attention_id
-    global selected_patient_id
+    global current_attention_id, selected_patient_id
     
-    # Check authentication
-    if not is_authenticated():
-        if request.is_json:
-            return jsonify({'success': False, 'error': 'Sesión no válida'}), 401
-        flash('Sesión no válida', 'error')
-        return redirect(url_for('clinic.index'))
+    auth_response = _check_auth_and_redirect()
+    if auth_response:
+        return auth_response
     
+    redirect_url = url_for('clinic.home', view='addAttention')
     doctor_info, sessionID = get_doctor_info_and_session()
     
-    logger.info(f"Complete attention - sessionID: {sessionID}, doctor_info: {doctor_info}")
-    logger.info(f"Complete attention - selected_patient_id: {selected_patient_id}")
-    logger.info(f"Complete attention - vital_signs_data: {vital_signs_data}")
-    logger.info(f"Complete attention - evaluation_data: {evaluation_data}")
+    logger.info(f"Complete attention - sessionID: {sessionID}, selected_patient_id: {selected_patient_id}")
+    
+    # Validate prerequisites
+    validation_error = _validate_attention_prerequisites(redirect_url)
+    if validation_error:
+        return validation_error
     
     try:
-        # Validate selected patient
-        logger.info("Validating selected patient...")
-        if not selected_patient_id:
-            error_msg = 'Debe seleccionar un paciente antes de finalizar la atención'
-            logger.error("No selected patient ID")
-            if request.is_json:
-                return jsonify({'success': False, 'error': error_msg}), 400
-            flash(error_msg, 'error')
-            return redirect(url_for('clinic.home', view='addAttention'))
+        # Get doctor
+        doctor, error = _get_or_create_doctor(sessionID)
+        if error:
+            return _handle_error(error, redirect_url, 500 if 'crear' in error else 404)
         
-        # Validate required data from Attention table fields
-        logger.info("Validating evaluation data...")
-        if not evaluation_data.get('reasonConsultation') or not evaluation_data.get('currentIllness'):
-            error_msg = 'Debe completar la evaluación inicial (motivo de consulta y enfermedad actual) antes de finalizar'
-            logger.error("Missing reasonConsultation or currentIllness")
-            if request.is_json:
-                return jsonify({'success': False, 'error': error_msg}), 400
-            flash(error_msg, 'error')
-            return redirect(url_for('clinic.home', view='addAttention'))
+        logger.info(f"Using doctor: ID={doctor.id}, Name={doctor.firstName} {doctor.lastName1}")
         
-        if not evaluation_data.get('evolution'):
-            error_msg = 'Debe completar la evolución del paciente antes de finalizar'
-            logger.error("Missing evolution")
-            if request.is_json:
-                return jsonify({'success': False, 'error': error_msg}), 400
-            flash(error_msg, 'error')
-            return redirect(url_for('clinic.home', view='addAttention'))
-        
-        # Get doctor information
-        logger.info("Getting doctor information...")
-        doctor = None
-        
-        # First, try to find doctor with sessionID (for traditional login)
-        if sessionID and sessionID != 'api_user':
-            logger.info(f"Looking for doctor with sessionID: {sessionID}")
-            doctor = Doctor.query.filter_by(identifierCode=sessionID, is_deleted=False).first()
-            logger.info(f"Found doctor from DB: {doctor}")
-        
-        # If no doctor found (typical for Supabase auth), use API doctor or default
-        if not doctor:
-            logger.info("No doctor found with sessionID, using API/default doctor...")
-            
-            # For Supabase users or API requests, try to get the first available doctor
-            # or create an API doctor
-            if request.is_json or session.get('auth_provider') == 'supabase':
-                # Try to find existing API doctor first
-                doctor = Doctor.query.filter_by(identifierCode='API001', is_deleted=False).first()
-                
-                if not doctor:
-                    # If no API doctor exists, use the first available doctor
-                    doctor = Doctor.query.filter_by(is_deleted=False).first()
-                    
-                if not doctor:
-                    logger.info("No doctors found, creating API doctor...")
-                    # Create a permanent API doctor record
-                    doctor = Doctor(
-                        identifierCode='API001',
-                        firstName='API',
-                        lastName1='Doctor',
-                        lastName2='',
-                        email='api@medsc.com',
-                        phone='000-000-0000',
-                        address='Virtual',
-                        birthDate=datetime(1990, 1, 1).date(),
-                        gender='Otro',
-                        speciality='Medicina General',
-                        created_by='system',
-                        updated_by='system'
-                    )
-                    try:
-                        db.session.add(doctor)
-                        db.session.commit()
-                        logger.info("API doctor created successfully")
-                    except Exception as e:
-                        logger.error(f"Error creating API doctor: {str(e)}")
-                        db.session.rollback()
-                        # Try to get any doctor as fallback
-                        doctor = Doctor.query.filter_by(is_deleted=False).first()
-                        if not doctor:
-                            error_msg = 'Error al crear doctor API y no hay doctores disponibles'
-                            logger.error(error_msg)
-                            if request.is_json:
-                                return jsonify({'success': False, 'error': error_msg}), 500
-                            flash(error_msg, 'error')
-                            return redirect(url_for('clinic.home', view='addAttention'))
-            else:
-                error_msg = 'Doctor no encontrado'
-                logger.error("Doctor not found for non-API request")
-                if request.is_json:
-                    return jsonify({'success': False, 'error': error_msg}), 404
-                flash(error_msg, 'error')
-                return redirect(url_for('clinic.home', view='addAttention'))
-        
-        logger.info(f"Using doctor: ID={doctor.id}, Code={doctor.identifierCode}, Name={doctor.firstName} {doctor.lastName1}")
-        
-        # Get selected patient
-        logger.info("Getting patient information...")
+        # Get patient
         patient = Patient.query.filter_by(id=selected_patient_id, is_deleted=False).first()
         if not patient:
-            error_msg = 'Paciente seleccionado no encontrado'
-            logger.error(f"Patient not found with ID: {selected_patient_id}")
-            if request.is_json:
-                return jsonify({'success': False, 'error': error_msg}), 404
-            flash(error_msg, 'error')
-            return redirect(url_for('clinic.home', view='addAttention'))
+            return _handle_error('Paciente seleccionado no encontrado', redirect_url, 404)
         
         logger.info(f"Using patient: ID={patient.id}, Name={patient.firstName} {patient.lastName1}")
         
-        # Create new attention with all Attention table fields
-        logger.info(f"Creating attention with patient_id: {patient.id}, doctor_id: {doctor.id}")
-        
-        new_attention = Attention(
-            # Date and time
-            date=datetime.now(),
-            # Vital signs (from vital_signs_data)
-            weight=float(vital_signs_data.get('weight')) if vital_signs_data.get('weight') else None,
-            height=float(vital_signs_data.get('height')) if vital_signs_data.get('height') else None,
-            temperature=float(vital_signs_data.get('temperature')) if vital_signs_data.get('temperature') else None,
-            bloodPressure=vital_signs_data.get('bloodPressure'),
-            heartRate=int(vital_signs_data.get('heartRate')) if vital_signs_data.get('heartRate') else None,
-            oxygenSaturation=int(vital_signs_data.get('oxygenSaturation')) if vital_signs_data.get('oxygenSaturation') else None,
-            breathingFrequency=int(vital_signs_data.get('breathingFrequency')) if vital_signs_data.get('breathingFrequency') else None,
-            glucose=float(vital_signs_data.get('glucose')) if vital_signs_data.get('glucose') else None,
-            hemoglobin=float(vital_signs_data.get('hemoglobin')) if vital_signs_data.get('hemoglobin') else None,
-            # Required fields from evaluation (these are in Attention table)
-            reasonConsultation=evaluation_data['reasonConsultation'],
-            currentIllness=evaluation_data['currentIllness'],
-            evolution=evaluation_data['evolution'],
-            # Foreign keys
-            idPatient=patient.id,
-            idDoctor=doctor.id,
-            # Audit fields
-            created_by=sessionID,
-            updated_by=sessionID
-        )
-        
-        logger.info("Adding attention to session...")
+        # Create and save attention
+        new_attention = _create_attention_record(patient, doctor, sessionID)
         db.session.add(new_attention)
-        
-        logger.info("Committing attention to database...")
         db.session.commit()
         
-        attention_id = new_attention.id
-        current_attention_id = attention_id
-        logger.info(f"Attention created successfully with ID: {attention_id}")
+        current_attention_id = new_attention.id
+        logger.info(f"Attention created with ID: {new_attention.id}")
         
-        # Save all related data (examinations, diagnostics, treatments, etc.)
-        # These are in separate tables linked to Attention
-        logger.info("Saving related attention data...")
-        _save_attention_related_data(attention_id, sessionID)
-        
-        success_msg = f'Atención registrada exitosamente para {patient.firstName} {patient.lastName1}'
+        # Save related data
+        _save_attention_related_data(new_attention.id, sessionID)
         logger.info(f"Attention completed for patient {patient.id} by doctor {doctor.id}")
         
         # Clear temporary data
         _clear_temp_attention_data()
         
-        if request.is_json:
-            return jsonify({
-                'success': True,
-                'message': success_msg,
-                'data': {
-                    'attention_id': attention_id,
-                    'patient': {
-                        'id': patient.id,
-                        'name': f"{patient.firstName} {patient.lastName1}"
-                    },
-                    'doctor': {
-                        'id': doctor.id,
-                        'name': f"Dr. {doctor.firstName} {doctor.lastName1}"
-                    },
-                    'date': new_attention.date.isoformat()
-                }
-            })
-        
-        flash(success_msg, 'success')
-        return redirect(url_for('clinic.home'))
+        return _build_attention_success_response(patient, doctor, new_attention)
         
     except ValueError as ve:
         db.session.rollback()
-        logger.error(f"Value error in attention data: {str(ve)}")
-        error_msg = 'Error en los datos numéricos ingresados. Verifique los signos vitales.'
-        if request.is_json:
-            return jsonify({'success': False, 'error': error_msg}), 400
-        flash(error_msg, 'error')
-        return redirect(url_for('clinic.home', view='addAttention'))
+        logger.error(f"Value error: {str(ve)}")
+        return _handle_error('Error en los datos numéricos ingresados. Verifique los signos vitales.', redirect_url, 400)
         
     except Exception as e:
         db.session.rollback()
         logger.error(f"Error completing attention: {str(e)}")
-        error_msg = 'Error al completar la atención'
-        if request.is_json:
-            return jsonify({'success': False, 'error': error_msg}), 500
-        flash(error_msg, 'error')
-        return redirect(url_for('clinic.home', view='addAttention'))
+        return _handle_error('Error al completar la atención', redirect_url, 500)
 
 def _save_attention_related_data(attention_id, session_id):
     """Helper function to save all related attention data"""

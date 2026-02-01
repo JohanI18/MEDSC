@@ -3,6 +3,7 @@ import requests
 import logging
 import os
 import re
+from urllib.parse import quote
 
 icd11 = Blueprint('icd11', __name__)
 
@@ -22,6 +23,40 @@ ICD11_ENTITY_ENDPOINT = "/icd/release/11/2025-01/mms"
 # Patrón para detectar códigos CIE-11 (ej: 1A00, MG3Z, 8C21.0)
 CIE11_CODE_PATTERN = re.compile(r'^[A-Z0-9]{2,}(\.[A-Z0-9]+)?$', re.IGNORECASE)
 
+# Patrón estricto para validar códigos CIE-11 (solo alfanuméricos y puntos)
+CIE11_CODE_STRICT_PATTERN = re.compile(r'^[A-Z0-9]{1,7}(\.[A-Z0-9]{1,5})?$', re.IGNORECASE)
+
+# Patrón para validar entity IDs (solo números)
+ENTITY_ID_PATTERN = re.compile(r'^[0-9]+$')
+
+
+def get_icd11_headers():
+    """Retorna los headers estándar para las peticiones a ICD-11 API"""
+    return {
+        'Accept': 'application/json',
+        'Accept-Language': 'es',
+        'API-Version': 'v2'
+    }
+
+
+def make_cors_response():
+    """Crea una respuesta OPTIONS con headers CORS"""
+    response = jsonify({'success': True})
+    response.headers.add('Access-Control-Allow-Origin', '*')
+    response.headers.add('Access-Control-Allow-Headers', 'Content-Type,Authorization')
+    response.headers.add('Access-Control-Allow-Methods', 'GET,OPTIONS')
+    return response
+
+
+def clean_icd11_title(title):
+    """Limpia el título de etiquetas HTML de resaltado"""
+    if not title:
+        return title
+    return (title
+            .replace('<em class="found">', '')
+            .replace("<em class='found'>", '')
+            .replace('</em>', ''))
+
 
 def get_entity_by_code(code):
     """
@@ -29,14 +64,18 @@ def get_entity_by_code(code):
     Retorna dict con code y title, o None si no se encuentra.
     """
     try:
-        headers = {
-            'Accept': 'application/json',
-            'Accept-Language': 'es',
-            'API-Version': 'v2'
-        }
+        # Validar que el código tenga un formato CIE-11 válido
+        if not code or not CIE11_CODE_STRICT_PATTERN.match(code):
+            logger.warning(f"Código CIE-11 inválido rechazado: {code[:50] if code else 'None'}")
+            return None
+        
+        # Sanitizar el código (ya validado, pero encoding adicional por seguridad)
+        safe_code = quote(code.upper(), safe='')
+        
+        headers = get_icd11_headers()
         
         # Primero obtener el stemId del código
-        codeinfo_url = f"{ICD11_API_BASE_URL}{ICD11_CODEINFO_ENDPOINT}/{code}"
+        codeinfo_url = f"{ICD11_API_BASE_URL}{ICD11_CODEINFO_ENDPOINT}/{safe_code}"
         response = requests.get(codeinfo_url, headers=headers, timeout=5)
         
         if response.status_code != 200:
@@ -88,11 +127,7 @@ def search_icd11():
         JSON con lista de diagnósticos encontrados
     """
     if request.method == 'OPTIONS':
-        response = jsonify({'success': True})
-        response.headers.add('Access-Control-Allow-Origin', '*')
-        response.headers.add('Access-Control-Allow-Headers', 'Content-Type,Authorization')
-        response.headers.add('Access-Control-Allow-Methods', 'GET,OPTIONS')
-        return response
+        return make_cors_response()
     
     try:
         search_term = request.args.get('q', '').strip()
@@ -122,11 +157,7 @@ def search_icd11():
             'highlightingEnabled': 'false'
         }
         
-        headers = {
-            'Accept': 'application/json',
-            'Accept-Language': 'es',
-            'API-Version': 'v2'
-        }
+        headers = get_icd11_headers()
         
         response = requests.get(search_url, params=params, headers=headers, timeout=10)
         
@@ -140,11 +171,7 @@ def search_icd11():
             for entity in destination_entities[:max_results]:
                 # Extraer el código CIE-11 del theCode o del ID
                 code = entity.get('theCode', '')
-                title = entity.get('title', '')
-                
-                # Limpiar el título de etiquetas HTML si las hay
-                if title:
-                    title = title.replace('<em class="found">', '').replace('</em>', '')
+                title = clean_icd11_title(entity.get('title', ''))
                 
                 # Solo agregar si tiene código y título
                 if code and title:
@@ -199,21 +226,24 @@ def get_icd11_entity(entity_id):
         JSON con los detalles de la entidad
     """
     if request.method == 'OPTIONS':
-        response = jsonify({'success': True})
-        response.headers.add('Access-Control-Allow-Origin', '*')
-        response.headers.add('Access-Control-Allow-Headers', 'Content-Type,Authorization')
-        response.headers.add('Access-Control-Allow-Methods', 'GET,OPTIONS')
-        return response
+        return make_cors_response()
     
     try:
-        # Construir la URL para obtener la entidad
-        entity_url = f"{ICD11_API_BASE_URL}/icd/entity/{entity_id}"
+        # Validar que el entity_id sea un número válido
+        if not entity_id or not ENTITY_ID_PATTERN.match(entity_id):
+            logger.warning(f"Entity ID inválido rechazado: {entity_id[:50] if entity_id else 'None'}")
+            return jsonify({
+                'success': False,
+                'error': 'ID de entidad inválido'
+            }), 400
         
-        headers = {
-            'Accept': 'application/json',
-            'Accept-Language': 'es',
-            'API-Version': 'v2'
-        }
+        # Sanitizar el entity_id (ya validado como numérico)
+        safe_entity_id = quote(entity_id, safe='')
+        
+        # Construir la URL para obtener la entidad
+        entity_url = f"{ICD11_API_BASE_URL}/icd/entity/{safe_entity_id}"
+        
+        headers = get_icd11_headers()
         
         response = requests.get(entity_url, headers=headers, timeout=10)
         
@@ -253,11 +283,7 @@ def autocomplete_by_code():
         limit: No usado, se mantiene por compatibilidad
     """
     if request.method == 'OPTIONS':
-        response = jsonify({'success': True})
-        response.headers.add('Access-Control-Allow-Origin', '*')
-        response.headers.add('Access-Control-Allow-Headers', 'Content-Type,Authorization')
-        response.headers.add('Access-Control-Allow-Methods', 'GET,OPTIONS')
-        return response
+        return make_cors_response()
     
     try:
         search_term = request.args.get('q', '').strip().upper()
@@ -299,11 +325,7 @@ def autocomplete_by_disease():
         limit: Número máximo de sugerencias (opcional, default: 8)
     """
     if request.method == 'OPTIONS':
-        response = jsonify({'success': True})
-        response.headers.add('Access-Control-Allow-Origin', '*')
-        response.headers.add('Access-Control-Allow-Headers', 'Content-Type,Authorization')
-        response.headers.add('Access-Control-Allow-Methods', 'GET,OPTIONS')
-        return response
+        return make_cors_response()
     
     try:
         search_term = request.args.get('q', '').strip()
@@ -327,11 +349,7 @@ def autocomplete_by_disease():
             'highlightingEnabled': 'false'
         }
         
-        headers = {
-            'Accept': 'application/json',
-            'Accept-Language': 'es',
-            'API-Version': 'v2'
-        }
+        headers = get_icd11_headers()
         
         response = requests.get(search_url, params=params, headers=headers, timeout=5)
         
@@ -343,11 +361,7 @@ def autocomplete_by_disease():
                     break
                     
                 code = entity.get('theCode', '')
-                title = entity.get('title', '')
-                
-                if title:
-                    title = title.replace('<em class="found">', '').replace('</em>', '')
-                    title = title.replace("<em class='found'>", '').replace('</em>', '')
+                title = clean_icd11_title(entity.get('title', ''))
                 
                 if code and title:
                     suggestions.append({
@@ -379,11 +393,7 @@ def autocomplete_icd11():
         limit: Número máximo de sugerencias (opcional, default: 8)
     """
     if request.method == 'OPTIONS':
-        response = jsonify({'success': True})
-        response.headers.add('Access-Control-Allow-Origin', '*')
-        response.headers.add('Access-Control-Allow-Headers', 'Content-Type,Authorization')
-        response.headers.add('Access-Control-Allow-Methods', 'GET,OPTIONS')
-        return response
+        return make_cors_response()
     
     try:
         search_term = request.args.get('q', '').strip()
@@ -416,11 +426,7 @@ def autocomplete_icd11():
                 'highlightingEnabled': 'false'
             }
             
-            headers = {
-                'Accept': 'application/json',
-                'Accept-Language': 'es',
-                'API-Version': 'v2'
-            }
+            headers = get_icd11_headers()
             
             response = requests.get(search_url, params=params, headers=headers, timeout=5)
             
@@ -433,11 +439,7 @@ def autocomplete_icd11():
                         break
                         
                     code = entity.get('theCode', '')
-                    title = entity.get('title', '')
-                    
-                    if title:
-                        title = title.replace('<em class="found">', '').replace('</em>', '')
-                        title = title.replace("<em class='found'>", '').replace('</em>', '')
+                    title = clean_icd11_title(entity.get('title', ''))
                     
                     # Evitar duplicados
                     if code and title and code not in existing_codes:

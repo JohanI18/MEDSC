@@ -37,8 +37,7 @@ def default_error_handler(e):
 @socketio.on('connect')
 def handle_connect():
     try:
-        # Priorizar Supabase ID sobre doctor_id
-        user_id = session.get('user_id') or session.get('supabase_id') or session.get('doctor_id')
+        user_id = get_current_user_id()
         if user_id:
             join_room(f"user_{user_id}")
             
@@ -54,7 +53,7 @@ def handle_connect():
 @socketio.on('disconnect')
 def handle_disconnect():
     try:
-        user_id = session.get('user_id') or session.get('supabase_id') or session.get('doctor_id')
+        user_id = get_current_user_id()
         if user_id:
             leave_room(f"user_{user_id}")
             
@@ -67,9 +66,88 @@ def handle_disconnect():
         logger.error(f"Error in disconnect handler: {str(e)}")
         return False
 
+def get_current_user_id():
+    """Obtiene el ID del usuario actual desde la sesión"""
+    return session.get('user_id') or session.get('supabase_id') or session.get('doctor_id')
+
+
+def save_message_to_db(user_id, receiver_id, message_text):
+    """Guarda el mensaje en la base de datos y retorna (message_id, timestamp, sender_name)"""
+    import re
+    from utils.db import db
+    
+    uuid_pattern = r'^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$'
+    is_uuid = re.match(uuid_pattern, str(user_id), re.IGNORECASE)
+    
+    new_message = ChatMessage(
+        sender_id=session.get('doctor_id') if not is_uuid else None,
+        receiver_id=int(receiver_id) if receiver_id.isdigit() else None,
+        sender_supabase_id=user_id,
+        receiver_supabase_id=receiver_id,
+        message=message_text,
+        created_by=user_id
+    )
+    
+    db.session.add(new_message)
+    db.session.commit()
+    
+    sender_name = get_sender_name_from_db()
+    
+    return new_message.id, new_message.timestamp.strftime('%Y-%m-%d %H:%M:%S'), sender_name
+
+
+def get_sender_name_from_db():
+    """Obtiene el nombre del remitente desde la base de datos"""
+    doctor_id = session.get('doctor_id')
+    if not doctor_id:
+        return session.get('user_name', 'Usuario')
+    
+    sender = Doctor.query.get(doctor_id)
+    if sender:
+        return f"{sender.firstName} {sender.lastName1}"
+    return session.get('user_name', 'Usuario')
+
+
+def create_demo_message_info():
+    """Crea información de mensaje para modo demo sin DB"""
+    import datetime
+    now = datetime.datetime.now()
+    return f"demo_{now.strftime('%Y%m%d%H%M%S')}", now.strftime('%Y-%m-%d %H:%M:%S')
+
+
+def emit_message_events(user_id, receiver_id, message_text, message_id, timestamp, sender_name):
+    """Emite todos los eventos de Socket.IO relacionados con el mensaje"""
+    message_data = {
+        'id': message_id,
+        'sender_id': user_id,
+        'sender_name': sender_name,
+        'message': message_text,
+        'timestamp': timestamp,
+        'is_mine': False
+    }
+    
+    emit('new_message', message_data, room=f"user_{receiver_id}")
+    
+    emit('message_sent', {
+        'id': message_id,
+        'receiver_id': receiver_id,
+        'message': message_text,
+        'timestamp': timestamp,
+        'success': True
+    })
+    
+    message_preview = message_text[:50] + ('...' if len(message_text) > 50 else '')
+    emit('unread_message', {
+        'sender_id': user_id,
+        'sender_name': sender_name,
+        'message_preview': message_preview,
+        'timestamp': timestamp
+    }, room=f"user_{receiver_id}")
+
+
 @socketio.on('send_message')
 def handle_message(data):
-    user_id = session.get('user_id') or session.get('supabase_id') or session.get('doctor_id')
+    user_id = get_current_user_id()
     if not user_id:
         emit('message_error', {'error': 'Usuario no autenticado'})
         return
@@ -82,77 +160,13 @@ def handle_message(data):
         return
     
     try:
-        # Obtener información del usuario actual
-        sender_name = session.get('user_name', 'Usuario')
-        message_id = None
-        timestamp = None
-        
-        # En modo Supabase, guardar mensaje en DB si está disponible
         if os.environ.get('USE_DATABASE', 'false').lower() == 'true':
-            import re
-            uuid_pattern = r'^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$'
-            
-            # Crear mensaje en base de datos
-            new_message = ChatMessage(
-                sender_id=session.get('doctor_id') if not re.match(uuid_pattern, str(user_id), re.IGNORECASE) else None,
-                receiver_id=None,  # Lo establecemos después si es numérico
-                sender_supabase_id=user_id,
-                receiver_supabase_id=receiver_id,
-                message=message_text,
-                created_by=user_id
-            )
-            
-            # Si el receiver_id es numérico, intentar establecerlo
-            if receiver_id.isdigit():
-                new_message.receiver_id = int(receiver_id)
-            
-            from utils.db import db
-            db.session.add(new_message)
-            db.session.commit()
-            
-            # Obtener información del remitente si existe
-            if session.get('doctor_id'):
-                sender = Doctor.query.get(session.get('doctor_id'))
-                if sender:
-                    sender_name = f"{sender.firstName} {sender.lastName1}"
-            
-            message_id = new_message.id
-            timestamp = new_message.timestamp.strftime('%Y-%m-%d %H:%M:%S')
+            message_id, timestamp, sender_name = save_message_to_db(user_id, receiver_id, message_text)
         else:
-            # Modo demo sin DB
-            import datetime
-            message_id = f"demo_{datetime.datetime.now().strftime('%Y%m%d%H%M%S')}"
-            timestamp = datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+            message_id, timestamp = create_demo_message_info()
+            sender_name = session.get('user_name', 'Usuario')
         
-        # Crear objeto de mensaje para enviar
-        message_data = {
-            'id': message_id,
-            'sender_id': user_id,
-            'sender_name': sender_name,
-            'message': message_text,
-            'timestamp': timestamp,
-            'is_mine': False
-        }
-        
-        # Enviar a la sala del receptor
-        emit('new_message', message_data, room=f"user_{receiver_id}")
-        
-        # Notificar al remitente que el mensaje fue enviado
-        emit('message_sent', {
-            'id': message_id,
-            'receiver_id': receiver_id,
-            'message': message_text,
-            'timestamp': timestamp,
-            'success': True
-        })
-        
-        # Emitir notificación de mensaje no leído al receptor
-        emit('unread_message', {
-            'sender_id': user_id,
-            'sender_name': sender_name,
-            'message_preview': message_text[:50] + ('...' if len(message_text) > 50 else ''),
-            'timestamp': timestamp
-        }, room=f"user_{receiver_id}")
+        emit_message_events(user_id, receiver_id, message_text, message_id, timestamp, sender_name)
         
     except Exception as e:
         logger.error(f"Error sending message: {str(e)}")
@@ -160,7 +174,7 @@ def handle_message(data):
 
 @socketio.on('typing')
 def handle_typing(data):
-    user_id = session.get('user_id') or session.get('supabase_id') or session.get('doctor_id')
+    user_id = get_current_user_id()
     if not user_id:
         return
     
