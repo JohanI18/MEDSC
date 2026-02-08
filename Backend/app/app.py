@@ -23,6 +23,11 @@ def create_app():
     # Configuración para Supabase
     app.secret_key = os.environ.get('SECRET_KEY', 'tu-clave-secreta-temporal')
     
+    # Configuración de cookies de sesión para funcionar con HTTPS y cross-site
+    app.config['SESSION_COOKIE_SECURE'] = True  # Solo HTTPS
+    app.config['SESSION_COOKIE_SAMESITE'] = 'None'  # Permitir cross-site
+    app.config['SESSION_COOKIE_HTTPONLY'] = True
+    
     # Inicializar SQLAlchemy siempre para evitar errores de contexto
     from utils.db import db
     
@@ -40,7 +45,7 @@ def create_app():
 
     # Configurar Socket.IO primero antes de CORS
     socketio.init_app(app, 
-                     cors_allowed_origins=["http://localhost:3000", "http://localhost:3001"],
+                     cors_allowed_origins="*",
                      logger=False,
                      engineio_logger=False,
                      async_mode='threading',
@@ -51,8 +56,17 @@ def create_app():
                      ping_interval=25)
 
     # Configurar CORS después de Socket.IO para evitar conflictos
+    # URLs permitidas desde variables de entorno
+    cors_origins = ["http://localhost:3000", "http://localhost:3001"]
+    frontend_url = os.environ.get('FRONTEND_URL')
+    backend_url = os.environ.get('BACKEND_URL')
+    if frontend_url:
+        cors_origins.append(frontend_url)
+    if backend_url:
+        cors_origins.append(backend_url)
+    
     CORS(app, 
-         origins=["http://localhost:3000", "http://localhost:3001"], 
+         origins=cors_origins, 
          methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
          allow_headers=["Content-Type", "Authorization"],
          supports_credentials=True)

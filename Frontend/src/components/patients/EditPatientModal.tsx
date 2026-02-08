@@ -44,15 +44,36 @@ const editPatientSchema = z.object({
   pre_existing_conditions: z.array(z.object({
     id: z.number().optional(),
     disease_name: z.string().min(1, 'Nombre de la enfermedad es requerido'),
-    time: z.string().optional(),
+    year: z.number().optional(),
     medicament: z.string().optional(),
     treatment: z.string().optional()
   })).optional(),
+  surgical_backgrounds: z.array(z.object({
+    id: z.number().optional(),
+    surgery_name: z.string().min(1, 'Nombre de la cirugía es requerido'),
+    year: z.number().optional(),
+    complications: z.string().optional(),
+    observations: z.string().optional()
+  })).optional(),
   family_backgrounds: z.array(z.object({
     id: z.number().optional(),
-    family_background: z.string().min(1, 'Antecedente familiar es requerido'),
-    time: z.string().optional(),
-    degree_relationship: z.string().min(1, 'Grado de parentesco es requerido')
+    family_background: z.string().min(1, 'Antecedente familiar es requerido')
+  })).optional(),
+  gynecological_backgrounds: z.array(z.object({
+    id: z.number().optional(),
+    last_menstruation_date: z.string().optional(),
+    num_gestas: z.number().optional(),
+    num_partos: z.number().optional(),
+    num_cesareas: z.number().optional(),
+    num_abortions: z.number().optional(),
+    num_live_children: z.number().optional(),
+    num_dead_children: z.number().optional(),
+    contraceptive_method: z.string().optional()
+  })).optional(),
+  prenatal_controls: z.array(z.object({
+    id: z.number().optional(),
+    expected_delivery_date: z.string().optional(),
+    gestational_age: z.number().optional()
   })).optional()
 });
 
@@ -83,9 +104,14 @@ export default function EditPatientModal({ isOpen, onClose, patient, onPatientUp
       allergies: [],
       emergency_contacts: [],
       pre_existing_conditions: [],
-      family_backgrounds: []
+      surgical_backgrounds: [],
+      family_backgrounds: [],
+      gynecological_backgrounds: [],
+      prenatal_controls: []
     }
   });
+
+  const watchedSex = watch('sex');
 
   // Field arrays para datos dinámicos
   const { fields: allergyFields, append: appendAllergy, remove: removeAllergy } = useFieldArray({
@@ -103,9 +129,24 @@ export default function EditPatientModal({ isOpen, onClose, patient, onPatientUp
     name: 'pre_existing_conditions'
   });
 
-  const { fields: familyBackgroundFields, append: appendFamilyBackground, remove: removeFamilyBackground } = useFieldArray({
+  const { fields: surgicalFields, append: appendSurgical, remove: removeSurgical } = useFieldArray({
+    control,
+    name: 'surgical_backgrounds'
+  });
+
+  const { fields: familyBgFields, append: appendFamilyBg, remove: removeFamilyBg } = useFieldArray({
     control,
     name: 'family_backgrounds'
+  });
+
+  const { fields: gynFields, append: appendGyn, remove: removeGyn } = useFieldArray({
+    control,
+    name: 'gynecological_backgrounds'
+  });
+
+  const { fields: prenatalFields, append: appendPrenatal, remove: removePrenatal } = useFieldArray({
+    control,
+    name: 'prenatal_controls'
   });
 
   // Cargar datos del paciente cuando el modal se abre
@@ -142,15 +183,36 @@ export default function EditPatientModal({ isOpen, onClose, patient, onPatientUp
         pre_existing_conditions: patient.pre_existing_conditions?.map(pc => ({
           id: pc.id,
           disease_name: pc.disease_name,
-          time: pc.time || '',
+          year: pc.year,
           medicament: pc.medicament || '',
           treatment: pc.treatment || ''
         })) || [],
+        surgical_backgrounds: patient.surgical_backgrounds?.map(sb => ({
+          id: sb.id,
+          surgery_name: sb.surgery_name,
+          year: sb.year,
+          complications: sb.complications || '',
+          observations: sb.observations || ''
+        })) || [],
         family_backgrounds: patient.family_backgrounds?.map(fb => ({
           id: fb.id,
-          family_background: fb.family_background,
-          time: fb.time || '',
-          degree_relationship: fb.degree_relationship
+          family_background: fb.family_background
+        })) || [],
+        gynecological_backgrounds: patient.gynecological_backgrounds?.map(gb => ({
+          id: gb.id,
+          last_menstruation_date: gb.last_menstruation_date || '',
+          num_gestas: gb.num_gestas,
+          num_partos: gb.num_partos,
+          num_cesareas: gb.num_cesareas,
+          num_abortions: gb.num_abortions,
+          num_live_children: gb.num_live_children,
+          num_dead_children: gb.num_dead_children,
+          contraceptive_method: gb.contraceptive_method || ''
+        })) || [],
+        prenatal_controls: patient.prenatal_controls?.map(pc => ({
+          id: pc.id,
+          expected_delivery_date: pc.expected_delivery_date || '',
+          gestational_age: pc.gestational_age
         })) || []
       });
     }
@@ -643,29 +705,29 @@ export default function EditPatientModal({ isOpen, onClose, patient, onPatientUp
             <div className="space-y-6">
               <h4 className="text-lg font-medium text-gray-900">Historial Médico</h4>
               
-              {/* Condiciones Preexistentes */}
+              {/* Antecedentes Personales Patológicos */}
               <div>
                 <div className="flex justify-between items-center mb-4">
-                  <h5 className="font-medium text-gray-800">Condiciones Preexistentes</h5>
+                  <h5 className="font-medium text-gray-800">Antecedentes Personales Patológicos</h5>
                   <button
                     type="button"
                     onClick={() => appendCondition({
                       disease_name: '',
-                      time: '',
+                      year: undefined,
                       medicament: '',
                       treatment: ''
                     })}
                     className="btn-secondary"
                   >
                     <Plus className="w-4 h-4 mr-2" />
-                    Agregar Condición
+                    Agregar Antecedente
                   </button>
                 </div>
 
                 {conditionFields.map((field, index) => (
                   <div key={field.id} className="p-4 border rounded-lg bg-yellow-50 mb-3">
                     <div className="flex justify-between items-center mb-2">
-                      <h6 className="font-medium text-yellow-800">Condición {index + 1}</h6>
+                      <h6 className="font-medium text-yellow-800">Antecedente {index + 1}</h6>
                       <button
                         type="button"
                         onClick={() => removeCondition(index)}
@@ -681,8 +743,11 @@ export default function EditPatientModal({ isOpen, onClose, patient, onPatientUp
                         className="input-field sm:col-span-2"
                       />
                       <input
-                        {...register(`pre_existing_conditions.${index}.time`)}
-                        type="date"
+                        {...register(`pre_existing_conditions.${index}.year`, { valueAsNumber: true })}
+                        type="number"
+                        placeholder="Año de diagnóstico"
+                        min="1900"
+                        max={new Date().getFullYear()}
                         className="input-field"
                       />
                       <input
@@ -701,16 +766,75 @@ export default function EditPatientModal({ isOpen, onClose, patient, onPatientUp
                 ))}
               </div>
 
+              {/* Antecedentes Personales Quirúrgicos */}
+              <div>
+                <div className="flex justify-between items-center mb-4">
+                  <h5 className="font-medium text-gray-800">Antecedentes Personales Quirúrgicos</h5>
+                  <button
+                    type="button"
+                    onClick={() => appendSurgical({
+                      surgery_name: '',
+                      year: undefined,
+                      complications: '',
+                      observations: ''
+                    })}
+                    className="btn-secondary"
+                  >
+                    <Plus className="w-4 h-4 mr-2" />
+                    Agregar Cirugía
+                  </button>
+                </div>
+
+                {surgicalFields.map((field, index) => (
+                  <div key={field.id} className="p-4 border rounded-lg bg-purple-50 mb-3">
+                    <div className="flex justify-between items-center mb-2">
+                      <h6 className="font-medium text-purple-800">Cirugía {index + 1}</h6>
+                      <button
+                        type="button"
+                        onClick={() => removeSurgical(index)}
+                        className="text-red-600 hover:text-red-800"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </button>
+                    </div>
+                    <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                      <input
+                        {...register(`surgical_backgrounds.${index}.surgery_name`)}
+                        placeholder="Nombre de la cirugía"
+                        className="input-field sm:col-span-2"
+                      />
+                      <input
+                        {...register(`surgical_backgrounds.${index}.year`, { valueAsNumber: true })}
+                        type="number"
+                        placeholder="Año"
+                        min="1900"
+                        max={new Date().getFullYear()}
+                        className="input-field"
+                      />
+                      <input
+                        {...register(`surgical_backgrounds.${index}.complications`)}
+                        placeholder="Complicaciones"
+                        className="input-field"
+                      />
+                      <textarea
+                        {...register(`surgical_backgrounds.${index}.observations`)}
+                        placeholder="Observaciones"
+                        rows={2}
+                        className="input-field sm:col-span-2"
+                      />
+                    </div>
+                  </div>
+                ))}
+              </div>
+
               {/* Antecedentes Familiares */}
               <div>
                 <div className="flex justify-between items-center mb-4">
                   <h5 className="font-medium text-gray-800">Antecedentes Familiares</h5>
                   <button
                     type="button"
-                    onClick={() => appendFamilyBackground({
-                      family_background: '',
-                      time: '',
-                      degree_relationship: '1'
+                    onClick={() => appendFamilyBg({
+                      family_background: ''
                     })}
                     className="btn-secondary"
                   >
@@ -719,42 +843,226 @@ export default function EditPatientModal({ isOpen, onClose, patient, onPatientUp
                   </button>
                 </div>
 
-                {familyBackgroundFields.map((field, index) => (
+                {familyBgFields.map((field, index) => (
                   <div key={field.id} className="p-4 border rounded-lg bg-blue-50 mb-3">
                     <div className="flex justify-between items-center mb-2">
                       <h6 className="font-medium text-blue-800">Antecedente {index + 1}</h6>
                       <button
                         type="button"
-                        onClick={() => removeFamilyBackground(index)}
+                        onClick={() => removeFamilyBg(index)}
                         className="text-red-600 hover:text-red-800"
                       >
                         <Trash2 className="w-4 h-4" />
                       </button>
                     </div>
-                    <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-                      <input
-                        {...register(`family_backgrounds.${index}.family_background`)}
-                        placeholder="Condición o enfermedad familiar"
-                        className="input-field sm:col-span-2"
-                      />
-                      <input
-                        {...register(`family_backgrounds.${index}.time`)}
-                        type="date"
-                        className="input-field"
-                      />
-                      <select
-                        {...register(`family_backgrounds.${index}.degree_relationship`)}
-                        className="input-field"
-                      >
-                        <option value="1">1er Grado (Padres, Hijos)</option>
-                        <option value="2">2do Grado (Hermanos, Abuelos)</option>
-                        <option value="3">3er Grado (Tíos, Sobrinos)</option>
-                        <option value="4">4to Grado (Primos)</option>
-                      </select>
-                    </div>
+                    <textarea
+                      {...register(`family_backgrounds.${index}.family_background`)}
+                      placeholder="Describa el antecedente familiar (ej: diabetes en padre, hipertensión en madre, etc.)"
+                      rows={2}
+                      className="input-field w-full"
+                    />
                   </div>
                 ))}
               </div>
+
+              {/* Antecedentes Ginecobstétricos - Solo para sexo femenino */}
+              {watchedSex === 'Femenino' && (
+                <div>
+                  <div className="flex justify-between items-center mb-4">
+                    <h5 className="font-medium text-gray-800">Antecedentes Ginecobstétricos</h5>
+                    {gynFields.length === 0 && (
+                      <button
+                        type="button"
+                        onClick={() => appendGyn({
+                          last_menstruation_date: '',
+                          num_gestas: undefined,
+                          num_partos: undefined,
+                          num_cesareas: undefined,
+                          num_abortions: undefined,
+                          num_live_children: undefined,
+                          num_dead_children: undefined,
+                          contraceptive_method: ''
+                        })}
+                        className="btn-secondary"
+                      >
+                        <Plus className="w-4 h-4 mr-2" />
+                        Agregar Antecedente
+                      </button>
+                    )}
+                  </div>
+
+                  {gynFields.map((field, index) => (
+                    <div key={field.id} className="p-4 border rounded-lg bg-pink-50 mb-3">
+                      <div className="flex justify-between items-center mb-4">
+                        <h6 className="font-medium text-pink-800">Antecedente Ginecobstétrico</h6>
+                        <button
+                          type="button"
+                          onClick={() => removeGyn(index)}
+                          className="text-red-600 hover:text-red-800"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </button>
+                      </div>
+                      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-1">
+                            Fecha Última Menstruación
+                          </label>
+                          <input
+                            {...register(`gynecological_backgrounds.${index}.last_menstruation_date`)}
+                            type="date"
+                            className="input-field w-full"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-1">
+                            Gestas (G)
+                          </label>
+                          <input
+                            {...register(`gynecological_backgrounds.${index}.num_gestas`, { valueAsNumber: true })}
+                            type="number"
+                            min="0"
+                            placeholder="0"
+                            className="input-field w-full"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-1">
+                            Partos (P)
+                          </label>
+                          <input
+                            {...register(`gynecological_backgrounds.${index}.num_partos`, { valueAsNumber: true })}
+                            type="number"
+                            min="0"
+                            placeholder="0"
+                            className="input-field w-full"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-1">
+                            Cesáreas (C)
+                          </label>
+                          <input
+                            {...register(`gynecological_backgrounds.${index}.num_cesareas`, { valueAsNumber: true })}
+                            type="number"
+                            min="0"
+                            placeholder="0"
+                            className="input-field w-full"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-1">
+                            Abortos (A)
+                          </label>
+                          <input
+                            {...register(`gynecological_backgrounds.${index}.num_abortions`, { valueAsNumber: true })}
+                            type="number"
+                            min="0"
+                            placeholder="0"
+                            className="input-field w-full"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-1">
+                            Hijos Vivos
+                          </label>
+                          <input
+                            {...register(`gynecological_backgrounds.${index}.num_live_children`, { valueAsNumber: true })}
+                            type="number"
+                            min="0"
+                            placeholder="0"
+                            className="input-field w-full"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-1">
+                            Hijos Fallecidos
+                          </label>
+                          <input
+                            {...register(`gynecological_backgrounds.${index}.num_dead_children`, { valueAsNumber: true })}
+                            type="number"
+                            min="0"
+                            placeholder="0"
+                            className="input-field w-full"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-1">
+                            Método Anticonceptivo
+                          </label>
+                          <input
+                            {...register(`gynecological_backgrounds.${index}.contraceptive_method`)}
+                            placeholder="Ej: DIU, Pastillas, etc."
+                            className="input-field w-full"
+                          />
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              {/* Control Prenatal - Solo para sexo femenino */}
+              {watchedSex === 'Femenino' && (
+                <div>
+                  <div className="flex justify-between items-center mb-4">
+                    <h5 className="font-medium text-gray-800">Control Prenatal</h5>
+                    {prenatalFields.length === 0 && (
+                      <button
+                        type="button"
+                        onClick={() => appendPrenatal({
+                          expected_delivery_date: '',
+                          gestational_age: undefined
+                        })}
+                        className="btn-secondary"
+                      >
+                        <Plus className="w-4 h-4 mr-2" />
+                        Agregar Control
+                      </button>
+                    )}
+                  </div>
+
+                  {prenatalFields.map((field, index) => (
+                    <div key={field.id} className="p-4 border rounded-lg bg-pink-50 mb-3">
+                      <div className="flex justify-between items-center mb-4">
+                        <h6 className="font-medium text-pink-800">Control Prenatal</h6>
+                        <button
+                          type="button"
+                          onClick={() => removePrenatal(index)}
+                          className="text-red-600 hover:text-red-800"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </button>
+                      </div>
+                      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-1">
+                            Fecha Probable de Parto (FPP)
+                          </label>
+                          <input
+                            {...register(`prenatal_controls.${index}.expected_delivery_date`)}
+                            type="date"
+                            className="input-field w-full"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-1">
+                            Edad Gestacional (semanas)
+                          </label>
+                          <input
+                            {...register(`prenatal_controls.${index}.gestational_age`, { valueAsNumber: true })}
+                            type="number"
+                            min="0"
+                            max="45"
+                            placeholder="0"
+                            className="input-field w-full"
+                          />
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
           )}
 

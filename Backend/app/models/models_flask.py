@@ -87,8 +87,11 @@ class Patient(db.Model):
     attentions = db.relationship("Attention", back_populates="patient") # Ajustar cascade según la política de BD
     allergies = db.relationship("Allergy", back_populates="patient", cascade="all, delete-orphan")
     emergency_contacts = db.relationship("EmergencyContact", back_populates="patient", cascade="all, delete-orphan")
-    family_backgrounds = db.relationship("FamilyBackground", back_populates="patient", cascade="all, delete-orphan")
     pre_existing_conditions = db.relationship("PreExistingCondition", back_populates="patient", cascade="all, delete-orphan")
+    surgical_backgrounds = db.relationship("SurgicalBackground", back_populates="patient", cascade="all, delete-orphan")
+    family_backgrounds = db.relationship("FamilyBackground", back_populates="patient", cascade="all, delete-orphan")
+    gynecological_backgrounds = db.relationship("GynecologicalBackground", back_populates="patient", cascade="all, delete-orphan")
+    prenatal_controls = db.relationship("PrenatalControl", back_populates="patient", cascade="all, delete-orphan")
 
 class Doctor(db.Model):
     __tablename__ = "doctor"
@@ -263,16 +266,13 @@ class FamilyBackground(db.Model):
 
     id                   = db.Column(db.Integer, primary_key=True, autoincrement=True)
     familyBackground     = db.Column(db.Text(collation="utf8mb4_general_ci"), nullable=False)
-    time                 = db.Column(db.Date, nullable=False)
-    degreeRelationship   = db.Column(SA_Enum('1', '2', '3', '4', name='familyBackground_degreeRelationship_enum', native_enum=False, validate_strings=True), nullable=False)
-    # CAMBIADO: idClinicHistory -> idPatient
     idPatient            = db.Column(db.Integer, db.ForeignKey('patients.id'), nullable=False, index=True)
 
     created_at      = db.Column(db.DateTime, server_default=func.now(), nullable=False)
     created_by      = db.Column(db.String(255), nullable=False)
     updated_at      = db.Column(db.DateTime, server_default=func.now(), onupdate=func.now(), nullable=False)
     updated_by      = db.Column(db.String(255), nullable=False)
-    is_deleted      = db.Column(db.Boolean, default=False, index=True, nullable=False) # Añadido index
+    is_deleted      = db.Column(db.Boolean, default=False, index=True, nullable=False)
 
     patient = db.relationship("Patient", back_populates="family_backgrounds")
 
@@ -336,6 +336,7 @@ class Laboratory(db.Model):
     attention = db.relationship("Attention", back_populates="laboratories")
 
 class PreExistingCondition(db.Model):
+    """Antecedentes Personales Patológicos"""
     __tablename__ = "preExistingCondition"
     __table_args__ = {
         "mysql_charset": "utf8mb4",
@@ -344,17 +345,16 @@ class PreExistingCondition(db.Model):
 
     id               = db.Column(db.Integer, primary_key=True, autoincrement=True)
     diseaseName      = db.Column(db.String(255, collation="utf8mb4_general_ci"), nullable=False)
-    time             = db.Column(db.Date, nullable=False)
+    year             = db.Column(db.Integer, nullable=True)  # Solo el año
     medicament       = db.Column(db.String(255, collation="utf8mb4_general_ci"), nullable=True)
     treatment        = db.Column(db.String(255, collation="utf8mb4_general_ci"), nullable=True)
-    # CAMBIADO: idClinicHistory -> idPatient
     idPatient        = db.Column(db.Integer, db.ForeignKey('patients.id'), nullable=False, index=True)
 
     created_at      = db.Column(db.DateTime, server_default=func.now(), nullable=False)
     created_by      = db.Column(db.String(255), nullable=False)
     updated_at      = db.Column(db.DateTime, server_default=func.now(), onupdate=func.now(), nullable=False)
     updated_by      = db.Column(db.String(255), nullable=False)
-    is_deleted      = db.Column(db.Boolean, default=False, index=True, nullable=False) # Añadido index
+    is_deleted      = db.Column(db.Boolean, default=False, index=True, nullable=False)
 
     patient = db.relationship("Patient", back_populates="pre_existing_conditions")
 
@@ -422,6 +422,81 @@ class Treatment(db.Model):
     is_deleted      = db.Column(db.Boolean, default=False, index=True, nullable=False) # Añadido index
 
     attention = db.relationship("Attention", back_populates="treatments")
+
+
+class SurgicalBackground(db.Model):
+    """Antecedentes Personales Quirúrgicos"""
+    __tablename__ = "surgicalBackground"
+    __table_args__ = {
+        "mysql_charset": "utf8mb4",
+        "mysql_collate": "utf8mb4_general_ci"
+    }
+
+    id               = db.Column(db.Integer, primary_key=True, autoincrement=True)
+    surgeryName      = db.Column(db.String(255, collation="utf8mb4_general_ci"), nullable=False)
+    year             = db.Column(db.Integer, nullable=True)  # Solo el año
+    complications    = db.Column(db.String(255, collation="utf8mb4_general_ci"), nullable=True)
+    observations     = db.Column(db.Text(collation="utf8mb4_general_ci"), nullable=True)
+    idPatient        = db.Column(db.Integer, db.ForeignKey('patients.id'), nullable=False, index=True)
+
+    created_at      = db.Column(db.DateTime, server_default=func.now(), nullable=False)
+    created_by      = db.Column(db.String(255), nullable=False)
+    updated_at      = db.Column(db.DateTime, server_default=func.now(), onupdate=func.now(), nullable=False)
+    updated_by      = db.Column(db.String(255), nullable=False)
+    is_deleted      = db.Column(db.Boolean, default=False, index=True, nullable=False)
+
+    patient = db.relationship("Patient", back_populates="surgical_backgrounds")
+
+
+class GynecologicalBackground(db.Model):
+    """Antecedentes Ginecobstétricos - Solo para pacientes femeninas"""
+    __tablename__ = "gynecologicalBackground"
+    __table_args__ = {
+        "mysql_charset": "utf8mb4",
+        "mysql_collate": "utf8mb4_general_ci"
+    }
+
+    id                      = db.Column(db.Integer, primary_key=True, autoincrement=True)
+    lastMenstruationDate    = db.Column(db.Date, nullable=True)  # Fecha de última menstruación
+    numGestas               = db.Column(db.Integer, nullable=True)  # Número de gestaciones
+    numPartos               = db.Column(db.Integer, nullable=True)  # Número de partos
+    numCesareas             = db.Column(db.Integer, nullable=True)  # Número de cesáreas
+    numAbortions            = db.Column(db.Integer, nullable=True)  # Número de abortos
+    numLiveChildren         = db.Column(db.Integer, nullable=True)  # Hijos vivos
+    numDeadChildren         = db.Column(db.Integer, nullable=True)  # Hijos muertos
+    contraceptiveMethod     = db.Column(db.String(255, collation="utf8mb4_general_ci"), nullable=True)  # Método anticonceptivo
+    idPatient               = db.Column(db.Integer, db.ForeignKey('patients.id'), nullable=False, index=True)
+
+    created_at      = db.Column(db.DateTime, server_default=func.now(), nullable=False)
+    created_by      = db.Column(db.String(255), nullable=False)
+    updated_at      = db.Column(db.DateTime, server_default=func.now(), onupdate=func.now(), nullable=False)
+    updated_by      = db.Column(db.String(255), nullable=False)
+    is_deleted      = db.Column(db.Boolean, default=False, index=True, nullable=False)
+
+    patient = db.relationship("Patient", back_populates="gynecological_backgrounds")
+
+
+class PrenatalControl(db.Model):
+    """Control Prenatal - Solo para pacientes femeninas"""
+    __tablename__ = "prenatalControl"
+    __table_args__ = {
+        "mysql_charset": "utf8mb4",
+        "mysql_collate": "utf8mb4_general_ci"
+    }
+
+    id                      = db.Column(db.Integer, primary_key=True, autoincrement=True)
+    expectedDeliveryDate    = db.Column(db.Date, nullable=True)  # Fecha probable de parto
+    gestationalAge          = db.Column(db.String(50, collation="utf8mb4_general_ci"), nullable=True)  # Edad gestacional (ej: "32 semanas")
+    idPatient               = db.Column(db.Integer, db.ForeignKey('patients.id'), nullable=False, index=True)
+
+    created_at      = db.Column(db.DateTime, server_default=func.now(), nullable=False)
+    created_by      = db.Column(db.String(255), nullable=False)
+    updated_at      = db.Column(db.DateTime, server_default=func.now(), onupdate=func.now(), nullable=False)
+    updated_by      = db.Column(db.String(255), nullable=False)
+    is_deleted      = db.Column(db.Boolean, default=False, index=True, nullable=False)
+
+    patient = db.relationship("Patient", back_populates="prenatal_controls")
+
 
 class ChatMessage(db.Model):
     __tablename__ = "chat_message"

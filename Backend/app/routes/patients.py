@@ -1,5 +1,5 @@
 from flask import Blueprint, render_template, session, request, redirect, url_for, flash, jsonify
-from models.models_flask import Patient, Allergy, FamilyBackground, PreExistingCondition, EmergencyContact
+from models.models_flask import Patient, Allergy, FamilyBackground, PreExistingCondition, EmergencyContact, SurgicalBackground, GynecologicalBackground, PrenatalControl
 from utils.db import db
 from utils.encryption import encrypt_field, decrypt_field, encrypt_for_search
 from utils.encryption_helpers import (
@@ -111,6 +111,9 @@ def get_patients_api():
             emergency_contacts = EmergencyContact.query.filter_by(idPatient=patient.id, is_deleted=False).all()
             pre_existing_conditions = PreExistingCondition.query.filter_by(idPatient=patient.id, is_deleted=False).all()
             family_backgrounds = FamilyBackground.query.filter_by(idPatient=patient.id, is_deleted=False).all()
+            surgical_backgrounds = SurgicalBackground.query.filter_by(idPatient=patient.id, is_deleted=False).all()
+            gynecological_backgrounds = GynecologicalBackground.query.filter_by(idPatient=patient.id, is_deleted=False).all()
+            prenatal_controls = PrenatalControl.query.filter_by(idPatient=patient.id, is_deleted=False).all()
             
             # Format emergency contacts (desencriptar)
             emergency_contacts_data = []
@@ -140,7 +143,7 @@ def get_patients_api():
                 conditions_data.append({
                     'id': condition.id,
                     'disease_name': decrypt_field(condition.diseaseName),
-                    'time': condition.time.isoformat() if condition.time else None,
+                    'year': condition.year,
                     'medicament': decrypt_field(condition.medicament),
                     'treatment': decrypt_field(condition.treatment)
                 })
@@ -150,9 +153,42 @@ def get_patients_api():
             for background in family_backgrounds:
                 family_backgrounds_data.append({
                     'id': background.id,
-                    'family_background': decrypt_field(background.familyBackground),
-                    'time': background.time.isoformat() if background.time else None,
-                    'degree_relationship': background.degreeRelationship
+                    'family_background': decrypt_field(background.familyBackground)
+                })
+            
+            # Format surgical backgrounds
+            surgical_backgrounds_data = []
+            for surgical in surgical_backgrounds:
+                surgical_backgrounds_data.append({
+                    'id': surgical.id,
+                    'surgery_name': decrypt_field(surgical.surgeryName),
+                    'year': surgical.year,
+                    'complications': decrypt_field(surgical.complications) if surgical.complications else None,
+                    'observations': decrypt_field(surgical.observations) if surgical.observations else None
+                })
+            
+            # Format gynecological backgrounds
+            gynecological_backgrounds_data = []
+            for gyn in gynecological_backgrounds:
+                gynecological_backgrounds_data.append({
+                    'id': gyn.id,
+                    'last_menstruation_date': gyn.lastMenstruationDate.isoformat() if gyn.lastMenstruationDate else None,
+                    'num_gestas': gyn.numGestas,
+                    'num_partos': gyn.numPartos,
+                    'num_cesareas': gyn.numCesareas,
+                    'num_abortions': gyn.numAbortions,
+                    'num_live_children': gyn.numLiveChildren,
+                    'num_dead_children': gyn.numDeadChildren,
+                    'contraceptive_method': gyn.contraceptiveMethod
+                })
+            
+            # Format prenatal controls
+            prenatal_controls_data = []
+            for prenatal in prenatal_controls:
+                prenatal_controls_data.append({
+                    'id': prenatal.id,
+                    'expected_delivery_date': prenatal.expectedDeliveryDate.isoformat() if prenatal.expectedDeliveryDate else None,
+                    'gestational_age': prenatal.gestationalAge
                 })
             
             # Get first emergency contact for backward compatibility
@@ -185,6 +221,9 @@ def get_patients_api():
                 'emergency_contacts': emergency_contacts_data,
                 'pre_existing_conditions': conditions_data,
                 'family_backgrounds': family_backgrounds_data,
+                'surgical_backgrounds': surgical_backgrounds_data,
+                'gynecological_backgrounds': gynecological_backgrounds_data,
+                'prenatal_controls': prenatal_controls_data,
                 'created_at': patient.created_at.isoformat() if patient.created_at else None,
                 'updated_at': patient.updated_at.isoformat() if patient.updated_at else None
             }
@@ -327,7 +366,7 @@ def update_patient_api(patient_id):
                     new_condition = PreExistingCondition(
                         idPatient=patient_id,
                         diseaseName=condition_data['disease_name'],
-                        time=condition_data.get('time'),
+                        year=condition_data.get('year'),
                         medicament=condition_data.get('medicament'),
                         treatment=condition_data.get('treatment'),
                         created_by=sessionID,
@@ -348,12 +387,73 @@ def update_patient_api(patient_id):
                     new_background = FamilyBackground(
                         idPatient=patient_id,
                         familyBackground=background_data['family_background'],
-                        time=background_data.get('time'),
-                        degreeRelationship=background_data.get('degree_relationship', '1'),
                         created_by=sessionID,
                         updated_by=sessionID
                     )
                     db.session.add(new_background)
+        
+        # Handle surgical backgrounds
+        if 'surgical_backgrounds' in data:
+            # Delete existing surgical backgrounds
+            existing_surgical = SurgicalBackground.query.filter_by(idPatient=patient_id).all()
+            for surgical in existing_surgical:
+                db.session.delete(surgical)
+            
+            # Add new surgical backgrounds
+            for surgical_data in data['surgical_backgrounds']:
+                if surgical_data.get('surgery_name'):
+                    new_surgical = SurgicalBackground(
+                        idPatient=patient_id,
+                        surgeryName=surgical_data['surgery_name'],
+                        year=surgical_data.get('year'),
+                        complications=surgical_data.get('complications'),
+                        observations=surgical_data.get('observations'),
+                        created_by=sessionID,
+                        updated_by=sessionID
+                    )
+                    db.session.add(new_surgical)
+        
+        # Handle gynecological backgrounds
+        if 'gynecological_backgrounds' in data:
+            # Delete existing gynecological backgrounds
+            existing_gyn = GynecologicalBackground.query.filter_by(idPatient=patient_id).all()
+            for gyn in existing_gyn:
+                db.session.delete(gyn)
+            
+            # Add new gynecological backgrounds
+            for gyn_data in data['gynecological_backgrounds']:
+                new_gyn = GynecologicalBackground(
+                    idPatient=patient_id,
+                    lastMenstruationDate=gyn_data.get('last_menstruation_date'),
+                    numGestas=gyn_data.get('num_gestas'),
+                    numPartos=gyn_data.get('num_partos'),
+                    numCesareas=gyn_data.get('num_cesareas'),
+                    numAbortions=gyn_data.get('num_abortions'),
+                    numLiveChildren=gyn_data.get('num_live_children'),
+                    numDeadChildren=gyn_data.get('num_dead_children'),
+                    contraceptiveMethod=gyn_data.get('contraceptive_method'),
+                    created_by=sessionID,
+                    updated_by=sessionID
+                )
+                db.session.add(new_gyn)
+        
+        # Handle prenatal controls
+        if 'prenatal_controls' in data:
+            # Delete existing prenatal controls
+            existing_prenatal = PrenatalControl.query.filter_by(idPatient=patient_id).all()
+            for prenatal in existing_prenatal:
+                db.session.delete(prenatal)
+            
+            # Add new prenatal controls
+            for prenatal_data in data['prenatal_controls']:
+                new_prenatal = PrenatalControl(
+                    idPatient=patient_id,
+                    expectedDeliveryDate=prenatal_data.get('expected_delivery_date'),
+                    gestationalAge=prenatal_data.get('gestational_age'),
+                    created_by=sessionID,
+                    updated_by=sessionID
+                )
+                db.session.add(new_prenatal)
         
         # Commit all changes
         db.session.commit()
@@ -388,7 +488,7 @@ def update_patient_api(patient_id):
         conditions_data = [{
             'id': condition.id,
             'disease_name': condition.diseaseName,
-            'time': condition.time,
+            'year': condition.year,
             'medicament': condition.medicament,
             'treatment': condition.treatment,
             'created_at': condition.created_at.isoformat() if condition.created_at else None
@@ -397,8 +497,6 @@ def update_patient_api(patient_id):
         family_backgrounds_data = [{
             'id': background.id,
             'family_background': background.familyBackground,
-            'time': background.time,
-            'degree_relationship': background.degreeRelationship,
             'created_at': background.created_at.isoformat() if background.created_at else None
         } for background in updated_backgrounds]
         
@@ -747,7 +845,7 @@ def add_patient_api():
                     new_condition = PreExistingCondition(
                         # No determinístico - datos médicos
                         diseaseName=encrypt_field(condition_data.get('disease_name'), 'PreExistingCondition', 'diseaseName'),
-                        time=condition_data.get('time'),
+                        year=condition_data.get('year'),
                         medicament=encrypt_field(condition_data.get('medicament'), 'PreExistingCondition', 'medicament'),
                         treatment=encrypt_field(condition_data.get('treatment'), 'PreExistingCondition', 'treatment'),
                         idPatient=new_patient.id,
@@ -757,16 +855,30 @@ def add_patient_api():
                     db.session.add(new_condition)
                     logger.info(f"Added pre-existing condition (encrypted)")
 
+        # Create surgical backgrounds with encryption
+        if data.get('surgical_backgrounds'):
+            logger.info(f"Processing surgical backgrounds: {data.get('surgical_backgrounds')}")
+            for surgical_data in data.get('surgical_backgrounds'):
+                if surgical_data.get('surgery_name'):
+                    new_surgical = SurgicalBackground(
+                        surgeryName=encrypt_field(surgical_data.get('surgery_name'), 'SurgicalBackground', 'surgeryName'),
+                        year=surgical_data.get('year'),
+                        complications=encrypt_field(surgical_data.get('complications'), 'SurgicalBackground', 'complications'),
+                        observations=encrypt_field(surgical_data.get('observations'), 'SurgicalBackground', 'observations'),
+                        idPatient=new_patient.id,
+                        created_by=sessionID,
+                        updated_by=sessionID
+                    )
+                    db.session.add(new_surgical)
+                    logger.info(f"Added surgical background (encrypted)")
+
         # Create family backgrounds with encryption
         if data.get('family_backgrounds'):
             logger.info(f"Processing family backgrounds: {data.get('family_backgrounds')}")
             for family_data in data.get('family_backgrounds'):
                 if family_data.get('family_background'):
                     new_family_bg = FamilyBackground(
-                        # No determinístico - datos médicos
                         familyBackground=encrypt_field(family_data.get('family_background'), 'FamilyBackground', 'familyBackground'),
-                        time=family_data.get('time'),
-                        degreeRelationship=family_data.get('degree_relationship', '1'),
                         idPatient=new_patient.id,
                         created_by=sessionID,
                         updated_by=sessionID
@@ -774,8 +886,43 @@ def add_patient_api():
                     db.session.add(new_family_bg)
                     logger.info(f"Added family background (encrypted)")
 
+        # Create gynecological backgrounds (only for female patients)
+        if data.get('gynecological_backgrounds'):
+            logger.info(f"Processing gynecological backgrounds: {data.get('gynecological_backgrounds')}")
+            for gyn_data in data.get('gynecological_backgrounds'):
+                new_gyn = GynecologicalBackground(
+                    lastMenstruationDate=gyn_data.get('last_menstruation_date'),
+                    numGestas=gyn_data.get('num_gestas'),
+                    numPartos=gyn_data.get('num_partos'),
+                    numCesareas=gyn_data.get('num_cesareas'),
+                    numAbortions=gyn_data.get('num_abortions'),
+                    numLiveChildren=gyn_data.get('num_live_children'),
+                    numDeadChildren=gyn_data.get('num_dead_children'),
+                    contraceptiveMethod=gyn_data.get('contraceptive_method'),
+                    idPatient=new_patient.id,
+                    created_by=sessionID,
+                    updated_by=sessionID
+                )
+                db.session.add(new_gyn)
+                logger.info(f"Added gynecological background")
+
+        # Create prenatal controls (only for female patients)
+        if data.get('prenatal_controls'):
+            logger.info(f"Processing prenatal controls: {data.get('prenatal_controls')}")
+            for prenatal_data in data.get('prenatal_controls'):
+                if prenatal_data.get('expected_delivery_date') or prenatal_data.get('gestational_age'):
+                    new_prenatal = PrenatalControl(
+                        expectedDeliveryDate=prenatal_data.get('expected_delivery_date'),
+                        gestationalAge=prenatal_data.get('gestational_age'),
+                        idPatient=new_patient.id,
+                        created_by=sessionID,
+                        updated_by=sessionID
+                    )
+                    db.session.add(new_prenatal)
+                    logger.info(f"Added prenatal control")
+
         # Legacy support: Create emergency contact if provided in old format
-        elif data.get('emergency_contact_name') or data.get('emergency_contact_phone'):
+        if data.get('emergency_contact_name') or data.get('emergency_contact_phone'):
             # Split the name if provided as a single field
             emergency_name = data.get('emergency_contact_name', '')
             name_parts = emergency_name.split(' ', 1) if emergency_name else ['', '']
@@ -803,7 +950,10 @@ def add_patient_api():
         allergies = Allergy.query.filter_by(idPatient=new_patient.id, is_deleted=False).all()
         emergency_contacts = EmergencyContact.query.filter_by(idPatient=new_patient.id, is_deleted=False).all()
         pre_existing_conditions = PreExistingCondition.query.filter_by(idPatient=new_patient.id, is_deleted=False).all()
+        surgical_backgrounds = SurgicalBackground.query.filter_by(idPatient=new_patient.id, is_deleted=False).all()
         family_backgrounds = FamilyBackground.query.filter_by(idPatient=new_patient.id, is_deleted=False).all()
+        gynecological_backgrounds = GynecologicalBackground.query.filter_by(idPatient=new_patient.id, is_deleted=False).all()
+        prenatal_controls = PrenatalControl.query.filter_by(idPatient=new_patient.id, is_deleted=False).all()
 
         # Format response data (desencriptar para mostrar)
         allergies_data = [{'id': a.id, 'allergy': decrypt_field(a.allergies)} for a in allergies]
@@ -825,18 +975,51 @@ def add_patient_api():
             conditions_data.append({
                 'id': condition.id,
                 'disease_name': decrypt_field(condition.diseaseName),
-                'time': condition.time.isoformat() if condition.time else None,
+                'year': condition.year,
                 'medicament': decrypt_field(condition.medicament),
                 'treatment': decrypt_field(condition.treatment)
             })
 
+        surgical_data = []
+        for surgical in surgical_backgrounds:
+            surgical_data.append({
+                'id': surgical.id,
+                'surgery_name': decrypt_field(surgical.surgeryName),
+                'year': surgical.year,
+                'complications': decrypt_field(surgical.complications),
+                'observations': decrypt_field(surgical.observations)
+            })
+
+        # Format family backgrounds as array
         family_backgrounds_data = []
-        for background in family_backgrounds:
+        for bg in family_backgrounds:
             family_backgrounds_data.append({
-                'id': background.id,
-                'family_background': decrypt_field(background.familyBackground),
-                'time': background.time.isoformat() if background.time else None,
-                'degree_relationship': background.degreeRelationship
+                'id': bg.id,
+                'family_background': decrypt_field(bg.familyBackground)
+            })
+
+        # Format gynecological backgrounds as array
+        gyn_data = []
+        for gyn in gynecological_backgrounds:
+            gyn_data.append({
+                'id': gyn.id,
+                'last_menstruation_date': gyn.lastMenstruationDate.isoformat() if gyn.lastMenstruationDate else None,
+                'num_gestas': gyn.numGestas,
+                'num_partos': gyn.numPartos,
+                'num_cesareas': gyn.numCesareas,
+                'num_abortions': gyn.numAbortions,
+                'num_live_children': gyn.numLiveChildren,
+                'num_dead_children': gyn.numDeadChildren,
+                'contraceptive_method': gyn.contraceptiveMethod
+            })
+
+        # Format prenatal controls as array
+        prenatal_data = []
+        for prenatal in prenatal_controls:
+            prenatal_data.append({
+                'id': prenatal.id,
+                'expected_delivery_date': prenatal.expectedDeliveryDate.isoformat() if prenatal.expectedDeliveryDate else None,
+                'gestational_age': prenatal.gestationalAge
             })
 
         # Get first emergency contact for backward compatibility
@@ -868,7 +1051,10 @@ def add_patient_api():
             'allergies': allergies_data,
             'emergency_contacts': emergency_contacts_data,
             'pre_existing_conditions': conditions_data,
+            'surgical_backgrounds': surgical_data,
             'family_backgrounds': family_backgrounds_data,
+            'gynecological_backgrounds': gyn_data,
+            'prenatal_controls': prenatal_data,
             'created_at': new_patient.created_at.isoformat() if new_patient.created_at else None
         }
 

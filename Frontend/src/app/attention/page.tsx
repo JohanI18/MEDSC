@@ -13,10 +13,10 @@ import toast from 'react-hot-toast';
 import VitalSignsModal from '@/components/attention/VitalSignsModal';
 import InitialEvaluationModal from '@/components/attention/InitialEvaluationModal';
 import PhysicalExamModal from '@/components/attention/PhysicalExamModal';
-import OrganSystemReviewModal from '@/components/patients/OrganSystemReviewModal';
+import OrganSystemReviewModal from '@/components/attention/OrganSystemReviewModal';
 import DiagnosticModal from '@/components/attention/DiagnosticModal';
-import TreatmentModal from '@/components/patients/TreatmentModal';
-import AdditionalExamsModal from '@/components/patients/AdditionalExamsModal';
+import TreatmentModal from '@/components/attention/TreatmentModal';
+import AdditionalExamsModal from '@/components/attention/AdditionalExamsModal';
 import EvolutionModal from '@/components/attention/EvolutionModal';
 import CompleteAttentionModal from '@/components/attention/CompleteAttentionModal';
 

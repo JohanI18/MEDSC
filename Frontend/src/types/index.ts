@@ -23,7 +23,10 @@ export interface Patient {
   allergies: Allergy[];
   emergency_contacts: EmergencyContact[];
   pre_existing_conditions: PreExistingCondition[];
-  family_backgrounds: FamilyBackground[];
+  surgical_backgrounds?: SurgicalBackground[];
+  family_backgrounds?: FamilyBackground[];  // Now an array of objects
+  gynecological_backgrounds?: GynecologicalBackground[];
+  prenatal_controls?: PrenatalControl[];
   created_at: string;
   updated_at: string;
 }
@@ -44,19 +47,48 @@ export interface EmergencyContact {
   address: string;
 }
 
+// Antecedentes Personales Patológicos
 export interface PreExistingCondition {
   id: number;
   disease_name: string;
-  time?: string;
+  year?: number;
   medicament?: string;
   treatment?: string;
 }
 
+// Antecedentes Personales Quirúrgicos
+export interface SurgicalBackground {
+  id: number;
+  surgery_name: string;
+  year?: number;
+  complications?: string;
+  observations?: string;
+}
+
+// Antecedentes Familiares
 export interface FamilyBackground {
   id: number;
   family_background: string;
-  time?: string;
-  degree_relationship: string;
+}
+
+// Antecedentes Ginecobstétricos (solo para sexo femenino)
+export interface GynecologicalBackground {
+  id: number;
+  last_menstruation_date?: string;
+  num_gestas?: number;
+  num_partos?: number;
+  num_cesareas?: number;
+  num_abortions?: number;
+  num_live_children?: number;
+  num_dead_children?: number;
+  contraceptive_method?: string;
+}
+
+// Control Prenatal (solo para sexo femenino)
+export interface PrenatalControl {
+  id: number;
+  expected_delivery_date?: string;
+  gestational_age?: number;
 }
 
 export interface VitalSigns {
@@ -125,10 +157,13 @@ export interface CreatePatientData {
   emergency_contact_name?: string;
   emergency_contact_phone?: string;
   // Additional data
-  allergies?: string[];
+  allergies?: string[] | { allergy: string }[];
   emergency_contacts?: CreateEmergencyContact[];
   pre_existing_conditions?: CreatePreExistingCondition[];
+  surgical_backgrounds?: CreateSurgicalBackground[];
   family_backgrounds?: CreateFamilyBackground[];
+  gynecological_backgrounds?: CreateGynecologicalBackground[];
+  prenatal_controls?: CreatePrenatalControl[];
 }
 
 export interface CreateEmergencyContact {
@@ -142,15 +177,36 @@ export interface CreateEmergencyContact {
 
 export interface CreatePreExistingCondition {
   disease_name: string;
-  time?: string;
+  year?: number;
   medicament?: string;
   treatment?: string;
 }
 
+export interface CreateSurgicalBackground {
+  surgery_name: string;
+  year?: number;
+  complications?: string;
+  observations?: string;
+}
+
 export interface CreateFamilyBackground {
   family_background: string;
-  time?: string;
-  degree_relationship: string;
+}
+
+export interface CreateGynecologicalBackground {
+  last_menstruation_date?: string;
+  num_gestas?: number;
+  num_partos?: number;
+  num_cesareas?: number;
+  num_abortions?: number;
+  num_live_children?: number;
+  num_dead_children?: number;
+  contraceptive_method?: string;
+}
+
+export interface CreatePrenatalControl {
+  expected_delivery_date?: string;
+  gestational_age?: number;
 }
 
 export interface UpdatePatientData {

@@ -46,6 +46,8 @@ services:
       - ./.env
     environment:
       - DATABASE_URL=mysql://${MYSQL_USER}:${MYSQL_PASSWORD}@db:3306/${MYSQL_DATABASE}
+      - FRONTEND_URL=${FRONTEND_URL:-http://localhost:3000}
+      - BACKEND_URL=${BACKEND_URL:-http://localhost:5000}
     ports:
       - "5000:5000"
     depends_on:
@@ -61,11 +63,13 @@ services:
     build:
       context: ./Frontend
       dockerfile: Dockerfile
+      args:
+        - NEXT_PUBLIC_API_URL=${BACKEND_URL:-http://localhost:5000}
     container_name: medsc_frontend
     restart: always
     environment:
       - NODE_ENV=production
-      - NEXT_PUBLIC_API_URL=http://localhost:5000
+      - NEXT_PUBLIC_API_URL=${BACKEND_URL:-http://localhost:5000}
     ports:
       - "3000:3000"
     depends_on:
