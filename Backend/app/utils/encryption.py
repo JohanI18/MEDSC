@@ -256,7 +256,6 @@ NON_DETERMINISTIC_FIELDS = {
     'Allergy': ['allergies'],
     'FamilyBackground': ['familyBackground'],
     'PreExistingCondition': ['diseaseName', 'medicament', 'treatment'],
-    'ChatMessage': ['message'],
     'EmergencyContact': ['firstName', 'lastName', 'address', 'phoneNumber1', 'phoneNumber2'],
 }
 

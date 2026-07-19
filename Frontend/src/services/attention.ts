@@ -1,5 +1,5 @@
 import api from '@/lib/api';
-import { Attention, VitalSigns, ApiResponse } from '@/types';
+import { Attention, AttentionSummary, VitalSigns, ApiResponse } from '@/types';
 
 export const attentionService = {
   // Select patient for attention
@@ -208,7 +208,7 @@ export const attentionService = {
   // Complete attention
   completeAttention: async (): Promise<ApiResponse<any>> => {
     try {
-      const response = await api.post('/complete-attention');
+      const response = await api.post('/complete-attention', {});
       return {
         success: true,
         data: response.data,
@@ -235,6 +235,26 @@ export const attentionService = {
       return {
         success: false,
         error: error.response?.data?.message || 'Failed to reset attention session'
+      };
+    }
+  },
+
+  // Get attention history summary for a patient
+  getPatientAttentions: async (patientId: number): Promise<ApiResponse<{
+    patient: { id: number; name: string; identifierCode: string };
+    attentions: AttentionSummary[];
+    total: number;
+  }>> => {
+    try {
+      const response = await api.get(`/api/attentions/patient/${patientId}`);
+      return {
+        success: true,
+        data: response.data.data
+      };
+    } catch (error: any) {
+      return {
+        success: false,
+        error: error.response?.data?.error || 'Failed to load attention history'
       };
     }
   },

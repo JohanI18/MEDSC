@@ -117,6 +117,35 @@ export interface Attention {
   updated_at: string;
 }
 
+export interface AttentionSummary {
+  id: number;
+  date: string | null;
+  reasonConsultation: string;
+  currentIllness: string;
+  evolution: string;
+  doctor: {
+    id: number;
+    name: string;
+    speciality: string;
+  } | null;
+  vitalSigns: {
+    weight: number | null;
+    height: number | null;
+    temperature: number | null;
+    bloodPressure: string | null;
+    heartRate: number | null;
+    oxygenSaturation: number | null;
+    breathingFrequency: number | null;
+    glucose: number | null;
+    hemoglobin: number | null;
+  };
+  diagnostics: {
+    cie10Code: string;
+    disease: string;
+    diagnosticCondition: string;
+  }[];
+}
+
 export interface LoginCredentials {
   email: string;
   password: string;

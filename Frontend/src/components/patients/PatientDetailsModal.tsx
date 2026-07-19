@@ -1,7 +1,9 @@
 'use client';
 
-import { X, User, Phone, Mail, MapPin, Calendar, Heart, AlertTriangle, Users, Stethoscope } from 'lucide-react';
+import { X, User, Phone, Mail, MapPin, Calendar, Heart, AlertTriangle, Users, Stethoscope, ClipboardList } from 'lucide-react';
+import { useQuery } from '@tanstack/react-query';
 import { Patient } from '@/types';
+import { attentionService } from '@/services/attention';
 
 interface PatientDetailsModalProps {
   isOpen: boolean;
@@ -10,6 +12,18 @@ interface PatientDetailsModalProps {
 }
 
 export default function PatientDetailsModal({ isOpen, onClose, patient }: PatientDetailsModalProps) {
+  const { data: attentionsData, isLoading: isLoadingAttentions, error: attentionsError } = useQuery({
+    queryKey: ['patient-attentions', patient.id],
+    queryFn: async () => {
+      const result = await attentionService.getPatientAttentions(patient.id);
+      if (!result.success) {
+        throw new Error(result.error);
+      }
+      return result.data;
+    },
+    enabled: isOpen
+  });
+
   if (!isOpen) return null;
 
   const formatDate = (dateString: string) => {
@@ -215,6 +229,60 @@ export default function PatientDetailsModal({ isOpen, onClose, patient }: Patien
               <p className="text-gray-500 text-sm">No hay antecedentes familiares registrados</p>
             )}
           </div>
+        </div>
+
+        {/* Historial de Atenciones */}
+        <div className="mt-6 bg-gray-50 rounded-lg p-4">
+          <div className="flex items-center mb-3">
+            <ClipboardList className="w-5 h-5 text-medical-600 mr-2" />
+            <h4 className="font-semibold text-gray-900">Historial de Atenciones</h4>
+          </div>
+
+          {isLoadingAttentions ? (
+            <div className="text-center py-6">
+              <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-medical-600 mx-auto"></div>
+            </div>
+          ) : attentionsError ? (
+            <p className="text-red-600 text-sm">No se pudo cargar el historial de atenciones</p>
+          ) : !attentionsData || attentionsData.attentions.length === 0 ? (
+            <p className="text-gray-500 text-sm">Este paciente no tiene atenciones registradas</p>
+          ) : (
+            <div className="space-y-3">
+              {attentionsData.attentions.map((attention) => (
+                <div key={attention.id} className="bg-white border border-gray-200 rounded-md p-3">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2 text-sm text-gray-500">
+                      <Calendar className="w-4 h-4" />
+                      {attention.date ? formatDate(attention.date) : 'Fecha no especificada'}
+                    </div>
+                    {attention.doctor && (
+                      <span className="text-sm text-gray-500">
+                        {attention.doctor.name} · {attention.doctor.speciality}
+                      </span>
+                    )}
+                  </div>
+
+                  <p className="mt-2 text-sm">
+                    <span className="text-gray-600">Motivo de consulta: </span>
+                    <span className="font-medium">{attention.reasonConsultation || 'No especificado'}</span>
+                  </p>
+
+                  {attention.diagnostics.length > 0 && (
+                    <div className="mt-2 flex flex-wrap gap-2">
+                      {attention.diagnostics.map((diagnostic, index) => (
+                        <span
+                          key={index}
+                          className="bg-medical-100 text-medical-700 text-xs font-medium px-2 py-1 rounded-md"
+                        >
+                          {diagnostic.cie10Code} - {diagnostic.disease}
+                        </span>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              ))}
+            </div>
+          )}
         </div>
 
         {/* Footer */}

@@ -130,18 +130,6 @@ class Doctor(db.Model):
     # Relaciones
     attentions = db.relationship("Attention", back_populates="doctor")
 
-    # Agregar esta propiedad para obtener mensajes no leídos
-    @property
-    def unread_messages_count(self):
-        from sqlalchemy import func
-        from flask import session
-        if not session.get('doctor_id'):
-            return 0
-        return ChatMessage.query.filter_by(
-            receiver_id=self.id, 
-            is_read=False
-        ).count()
-
 class Attention(db.Model):
     __tablename__ = "attention"
     __table_args__ = {
@@ -497,29 +485,6 @@ class PrenatalControl(db.Model):
 
     patient = db.relationship("Patient", back_populates="prenatal_controls")
 
-
-class ChatMessage(db.Model):
-    __tablename__ = "chat_message"
-    __table_args__ = {
-        "mysql_charset": "utf8mb4",
-        "mysql_collate": "utf8mb4_0900_ai_ci"
-    }
-    
-    id = db.Column(db.Integer, primary_key=True)
-    sender_id = db.Column(db.Integer, db.ForeignKey('doctor.id'), nullable=True)  # Hacer nullable para permitir Supabase only
-    receiver_id = db.Column(db.Integer, db.ForeignKey('doctor.id'), nullable=True)  # Hacer nullable
-    sender_supabase_id = db.Column(db.String(255), nullable=False)  # Requerido para identificar sender
-    sender_type = db.Column(db.String(50), nullable=False, server_default='medico')
-    receiver_supabase_id = db.Column(db.String(255), nullable=False)  # Requerido para identificar receiver
-    receiver_type = db.Column(db.String(50), nullable=False, server_default='medico')
-    message = db.Column(db.Text, nullable=False)
-    timestamp = db.Column(db.DateTime, default=db.func.current_timestamp())
-    is_read = db.Column(db.Boolean, default=False)
-    created_by = db.Column(db.String(255), nullable=False)  # Campo requerido por la base de datos
-    
-    # Relaciones (opcionales ahora que usamos Supabase IDs)
-    sender = db.relationship("Doctor", foreign_keys=[sender_id], backref="sent_messages")
-    receiver = db.relationship("Doctor", foreign_keys=[receiver_id], backref="received_messages")
 
 # --- ÍNDICES ADICIONALES (Ejemplos, algunos ya están por index=True en columnas) ---
 # Estos se crean automáticamente si index=True está en la columna.

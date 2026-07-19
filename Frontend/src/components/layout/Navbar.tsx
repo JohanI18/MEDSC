@@ -1,11 +1,10 @@
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useState, useEffect } from 'react';
-import { 
-  User, 
-  Users, 
-  Stethoscope, 
-  MessageSquare, 
+import {
+  User,
+  Users,
+  Stethoscope,
   Home,
   Menu,
   X,
@@ -42,7 +41,6 @@ export default function Navbar({ currentPath }: NavbarProps) {
     { name: 'Dashboard', href: '/dashboard', icon: Home },
     { name: 'Pacientes', href: '/patients', icon: Users },
     { name: 'Atención', href: '/attention', icon: Stethoscope },
-    { name: 'Chat', href: '/chat', icon: MessageSquare },
   ];
 
   // Add admin link if user is admin
@@ -89,13 +87,13 @@ export default function Navbar({ currentPath }: NavbarProps) {
           
           <div className="hidden sm:ml-6 sm:flex sm:items-center">
             <div className="relative ml-3">
-              <button
-                onClick={handleLogout}
+              <Link
+                href="/profile"
                 className="flex items-center text-sm text-gray-500 hover:text-gray-700"
               >
                 <User className="w-4 h-4 mr-2" />
                 Perfil
-              </button>
+              </Link>
             </div>
             <button
               onClick={handleLogout}

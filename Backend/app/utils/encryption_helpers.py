@@ -211,16 +211,6 @@ def decrypt_emergency_contact_data(data: dict) -> dict:
     return decrypt_model_data('EmergencyContact', data)
 
 
-def encrypt_chat_message(message: str) -> str:
-    """Encripta un mensaje de chat (no determinístico)."""
-    return encrypt_field(message, 'ChatMessage', 'message')
-
-
-def decrypt_chat_message(encrypted_message: str) -> str:
-    """Desencripta un mensaje de chat."""
-    return decrypt_field(encrypted_message)
-
-
 # ==============================================================================
 # DECORADORES PARA RUTAS
 # ==============================================================================

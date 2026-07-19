@@ -145,16 +145,6 @@ export default function DashboardPage() {
               </div>
             </button>
             
-            <button 
-              onClick={() => window.location.href = '/chat'}
-              className="flex items-center p-4 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
-            >
-              <Calendar className="h-6 w-6 text-primary-600 mr-3" />
-              <div className="text-left">
-                <div className="font-medium text-gray-900">Chat Médico</div>
-                <div className="text-sm text-gray-500">Consultar con otros doctores</div>
-              </div>
-            </button>
           </div>
         </div>
 

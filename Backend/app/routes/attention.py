@@ -241,19 +241,19 @@ def _validate_attention_prerequisites(redirect_url):
     if not selected_patient_id:
         return _handle_error(
             'Debe seleccionar un paciente antes de finalizar la atención',
-            'No selected patient ID', redirect_url, 400
+            redirect_url, 400, 'No selected patient ID'
         )
-    
+
     if not evaluation_data.get('reasonConsultation') or not evaluation_data.get('currentIllness'):
         return _handle_error(
             'Debe completar la evaluación inicial (motivo de consulta y enfermedad actual) antes de finalizar',
-            'Missing reasonConsultation or currentIllness', redirect_url, 400
+            redirect_url, 400, 'Missing reasonConsultation or currentIllness'
         )
-    
+
     if not evaluation_data.get('evolution'):
         return _handle_error(
             'Debe completar la evolución del paciente antes de finalizar',
-            'Missing evolution', redirect_url, 400
+            redirect_url, 400, 'Missing evolution'
         )
     
     return None
@@ -290,10 +290,10 @@ def _create_api_doctor():
         lastName1='Doctor',
         lastName2='',
         email='api@medsc.com',
-        phone='000-000-0000',
+        phoneNumber='000-000-0000',
         address='Virtual',
-        birthDate=datetime(1990, 1, 1).date(),
         gender='Otro',
+        sex='Prefiero no decir',
         speciality='Medicina General',
         created_by='system',
         updated_by='system'
@@ -1628,7 +1628,10 @@ def get_patient_attentions(patient_id):
         attentions_data = []
         for attention in attentions:
             doctor = Doctor.query.filter_by(id=attention.idDoctor).first()
-            
+            diagnostics = Diagnostic.query.filter_by(
+                idAttention=attention.id, is_deleted=False
+            ).all()
+
             attentions_data.append({
                 'id': attention.id,
                 'date': attention.date.isoformat() if attention.date else None,
@@ -1650,7 +1653,14 @@ def get_patient_attentions(patient_id):
                     'breathingFrequency': attention.breathingFrequency,
                     'glucose': attention.glucose,
                     'hemoglobin': attention.hemoglobin
-                }
+                },
+                'diagnostics': [
+                    {
+                        'cie10Code': d.cie10Code,
+                        'disease': d.disease,
+                        'diagnosticCondition': d.diagnosticCondition
+                    } for d in diagnostics
+                ]
             })
         
         return jsonify({
